@@ -8,6 +8,7 @@ import { createJiti } from "jiti";
 const source = await readFile(new URL("./AppShell.tsx", import.meta.url), "utf8");
 const jiti = createJiti(import.meta.url);
 const draftStore = await jiti.import("../lib/draft-store.ts");
+const sessionTabsModule = await jiti.import("../lib/session-tabs.ts");
 
 function callbackBody(name, nextName) {
   const start = source.indexOf(`const ${name} = useCallback`);
@@ -73,6 +74,11 @@ test("New restores the draft after session navigation and workspace auto-restore
       const response = Promise.withResolvers();
       const context = vm.createContext({
         ...draftStore,
+        ...sessionTabsModule,
+        openSessionTab: sessionTabsModule.openTab,
+        closeSessionTab: sessionTabsModule.closeTab,
+        activateSessionTab: sessionTabsModule.activateTab,
+        initSessionTabs: sessionTabsModule.initTabs,
         crypto: globalThis.crypto,
         queueMicrotask,
         URLSearchParams,
@@ -83,6 +89,7 @@ test("New restores the draft after session navigation and workspace auto-restore
         clearLastOpen() {},
         workspaceKeyOf: (value) => value.projectKey ?? value.cwd,
         useCallback: (callback) => callback,
+        useEffect() {},
         useGlobalKeyboardShortcuts() {},
         activeNewSessionDraftKeyRef: { current: `new:initial:${cwd}` },
         activeProjectKeyRef: { current: cwd },
@@ -100,8 +107,21 @@ test("New restores the draft after session navigation and workspace auto-restore
         newSessionDraftId: "initial",
         selectedSession: null,
         sessionKey: 0,
+        tabState: { tabs: [], activeId: null },
+        sessionCatalog: [],
       });
       context.invalidateWorkspaceRestore = () => context.workspaceRestoreTokenRef.current++;
+      context.setTabState = (value) => {
+        context.tabState = typeof value === "function" ? value(context.tabState) : value;
+      };
+      Object.defineProperty(context, "sessionTabs", {
+        get() { return context.tabState.tabs; },
+        configurable: true,
+      });
+      Object.defineProperty(context, "activeTabId", {
+        get() { return context.tabState.activeId; },
+        configurable: true,
+      });
       for (const [setter] of callbacks.matchAll(/\bset[A-Z]\w*(?=\()/g)) {
         const state = setter[3].toLowerCase() + setter.slice(4);
         context[setter] = (value) => {

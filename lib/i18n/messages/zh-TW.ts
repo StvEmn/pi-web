@@ -649,5 +649,7 @@ export const zhTWLocale: LocalePlugin = {
     "i18n.taskFinished": "任務已完成。",
     "i18n.attentionNeeded": "Pi 需要你處理",
     "i18n.extensionInputNeeded": "擴充功能正在等待你的輸入。",
+    "sessionTabs.ariaLabel": "工作階段標籤頁",
+    "sessionTabs.closeTabNamed": "關閉標籤頁 {title}",
   },
 };

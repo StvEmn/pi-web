@@ -649,5 +649,7 @@ export const zhCNLocale: LocalePlugin = {
     "i18n.taskFinished": "任务已完成。",
     "i18n.attentionNeeded": "Pi 需要你的操作",
     "i18n.extensionInputNeeded": "扩展正在等待你的输入。",
+    "sessionTabs.ariaLabel": "会话标签页",
+    "sessionTabs.closeTabNamed": "关闭标签页 {title}",
   },
 };

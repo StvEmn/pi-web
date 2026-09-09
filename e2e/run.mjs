@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { checkExtensionDialogs, extensionSource } from "./extension-dialog.mjs";
 import { checkChatAppearance } from "./chat-appearance.mjs";
+import { message, writeSession } from "./fixtures.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const mode = process.env.E2E_SERVER_MODE || "dev";
@@ -30,16 +31,6 @@ const RICH = "e2e-rich-session";
 const COMPACTED = "e2e-compacted-session";
 const text = (i) => `E2E message ${String(i).padStart(4, "0")}`;
 const ids = (start, end) => Array.from({ length: end - start }, (_, i) => `e${start + i}`);
-
-function message(id, parentId, role, content) {
-  return { type: "message", id, parentId, timestamp, message: { role, content } };
-}
-
-function writeSession(id, entries) {
-  const header = { type: "session", version: 3, id, timestamp, cwd: project };
-  writeFileSync(join(sessionDir, `2026-08-23T00-00-00-000Z_${id}.jsonl`),
-    [header, ...entries].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
-}
 
 let server;
 let serverExited;
@@ -63,12 +54,12 @@ try {
   const longEntries = Array.from({ length: 5000 }, (_, i) =>
     message(`e${i}`, i ? `e${i - 1}` : null, i % 2 ? "assistant" : "user", text(i)));
   longEntries.splice(1, 0, message("alternate", "e0", "user", "E2E alternate history branch"));
-  writeSession(LONG, longEntries);
-  writeSession(BRANCH, [
+  writeSession(sessionDir, LONG, longEntries, project);
+  writeSession(sessionDir, BRANCH, [
     message("root", null, "user", "Branch root"),
     message("old", "root", "assistant", "Inactive branch answer"),
     message("new", "root", "assistant", "Active branch answer"),
-  ]);
+  ], project);
   const toolResult = message("result", "call", "toolResult", [{ type: "text", text: "E2E tool output" }]);
   Object.assign(toolResult.message, { toolCallId: "t1", toolName: "bash", isError: false });
   const richEntries = [
@@ -94,7 +85,7 @@ try {
     ]),
   ];
   Object.assign(richEntries.at(-1).message, { provider: "test", model: "E2E Model" });
-  writeSession(RICH, richEntries);
+  writeSession(sessionDir, RICH, richEntries, project);
   // The default 50-entry page starts at compaction, with its user prompt outside it.
   const compactedEntries = [
     message("user", null, "user", "E2E prompt outside the compacted page"),
@@ -113,7 +104,7 @@ try {
     + "## E2E compacted heading\n\n"
     + "E2E compacted answer paragraph.\n\n".repeat(20),
   }]));
-  writeSession(COMPACTED, compactedEntries);
+  writeSession(sessionDir, COMPACTED, compactedEntries, project);
 
   const probe = createServer();
   probe.listen(0, "127.0.0.1");

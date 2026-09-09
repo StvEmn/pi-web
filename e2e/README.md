@@ -39,3 +39,12 @@ Model prompts, live model streaming, and agent execution are outside this suite.
 Failures save a screenshot, Playwright trace, and server log under
 `test-results/e2e/`; CI uploads that directory. Open a trace with
 `npx playwright show-trace test-results/e2e/trace.zip`.
+
+### Session tabs (`e2e/session-tabs.mjs`)
+
+```sh
+node e2e/session-tabs.mjs
+```
+
+Separate from the main e2e suite. Tests session tab open/switch/close/refresh
+restore with a two-project fixture. Not added to npm scripts; run manually.

@@ -6,7 +6,9 @@ import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
 import type { ChatScrollPosition } from "@/lib/chat-scroll-position";
+import { type TabState, loadTabs, saveTabs, openTab as openSessionTab, closeTab as closeSessionTab, activateTab as activateSessionTab, initTabs as initSessionTabs, buildUrlSearch } from "@/lib/session-tabs";
 import { FileViewer } from "./FileViewer";
+import { SessionTabBar } from "./SessionTabBar";
 import { TabBar, type Tab } from "./TabBar";
 import { openFileTab, saveFileViewerState } from "./file-tab-state";
 import { SettingsPanel, SettingsSectionIcon } from "./SettingsPanel";
@@ -159,6 +161,31 @@ export function AppShell() {
   const handleSessionScrollPositionChange = useCallback((sessionId: string, position: ChatScrollPosition) => {
     sessionScrollPositionsRef.current.set(sessionId, position);
   }, []);
+
+  // ── Session tabs state ────────────────────────────────────────────────────
+  const [tabState, setTabState] = useState<TabState>({ tabs: [], activeId: null });
+  const sessionTabs = tabState.tabs;
+  const activeTabId = tabState.activeId;
+  // Track whether tabs have been initialized from localStorage (first-boot)
+  const tabsInitializedRef = useRef(false);
+  // URL sync stays off until initialization completes (see the sync effect).
+  const tabsInitializedForUrlRef = useRef(false);
+
+  // Build session name/cwd maps for SessionTabBar
+  const sessionNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of sessionCatalog) {
+      map.set(s.id, s.name ?? s.firstMessage ?? s.id);
+    }
+    return map;
+  }, [sessionCatalog]);
+  const sessionCwdMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of sessionCatalog) {
+      map.set(s.id, s.projectRoot ?? s.cwd);
+    }
+    return map;
+  }, [sessionCatalog]);
   const [searchTarget, setSearchTarget] = useState<{ sessionId: string; entryId: string; blockIndex?: number } | null>(null);
   const handleSearchTargetHandled = useCallback((target: { sessionId: string; entryId: string }) => {
     setSearchTarget((current) => current === target ? null : current);
@@ -585,6 +612,66 @@ export function AppShell() {
     setLastOpenSession(projectKey, selectedSession.id);
   }, [selectedSession]);
 
+  // Initialize session tabs from localStorage on first mount.
+  // Falls back to the URL session or the most recent session.
+  useEffect(() => {
+    if (tabsInitializedRef.current) return;
+    tabsInitializedRef.current = true;
+    tabsInitializedForUrlRef.current = true;
+    const persisted = loadTabs();
+    if (persisted.tabs.length > 0) {
+      setTabState(persisted);
+      return;
+    }
+    // First boot: no persisted tabs. Will be initialized once the catalog
+    // is available via the initSessionTabs fallback effect below.
+  }, []);
+  // First-boot tab initialization when no tabs are persisted.
+  // Creates a single tab from the URL session or the most recent session.
+  // Skipped when the URL restore flow (initialSessionId) already handles
+  // the first session — handleSelectSession will create the tab.
+  useEffect(() => {
+    if (sessionTabs.length > 0) return; // already have tabs
+    if (sessionCatalog.length === 0) return; // catalog not loaded yet
+    if (initialSessionId) return; // URL restore will handle it
+    const recentSessionId = sessionCatalog[0]?.id ?? null;
+    const initial = initSessionTabs(null, recentSessionId);
+    if (initial.tabs.length > 0) {
+      setTabState(initial);
+    }
+  }, [sessionTabs.length, sessionCatalog, initialSessionId]);
+
+  // Single persistence point for session tabs: any tabState change lands in
+  // localStorage here, so call sites never save (and never forget to).
+  // Skips the initial state (nothing persisted yet) — the mount effect above
+  // loads from storage first, and re-saving the pre-init empty state would
+  // wipe it before the load lands.
+  const tabsPersistedOnceRef = useRef(false);
+  useEffect(() => {
+    if (!tabsInitializedRef.current) return;
+    if (!tabsPersistedOnceRef.current) {
+      tabsPersistedOnceRef.current = true;
+      return;
+    }
+    saveTabs(tabState);
+  }, [tabState]);
+
+  // Sync URL with active tab. Wait until tabs are initialized (loaded from
+  // storage or first-boot init) before touching the URL — the pre-init empty
+  // state must not clear a restore URL like /?session=<id>.
+  // Subscribes to searchParams so an external router.replace that strips the
+  // query (e.g. handleCwdChange after the initial sidebar restore) is
+  // immediately corrected back: this effect is the single owner of ?session=.
+  useEffect(() => {
+    if (!tabsInitializedForUrlRef.current) return;
+    const search = buildUrlSearch(tabState.activeId, tabState.tabs);
+    const currentSearch = typeof window !== "undefined" ? window.location.search : "";
+    if (search !== currentSearch) {
+      router.replace(search || (typeof window !== "undefined" ? window.location.pathname : "/"), { scroll: false });
+    }
+    // searchParams referenced only to re-run on external URL rewrites.
+  }, [tabState.activeId, tabState.tabs, router, searchParams]);
+
   useEffect(() => {
     const requestedCwd = initialNavigation.requestedCwd;
     if (!requestedCwd) return;
@@ -655,20 +742,22 @@ export function AppShell() {
           rekeyDraft(activeDraftKey, parkedNewSessionDraftKey(cwd));
         }
         activeNewSessionDraftKeyRef.current = null;
+        // Route through the tab state so the session tab bar, URL, and chat
+        // stay consistent: activate its tab when already open, otherwise open
+        // one (the workspace restore is an explicit user-facing switch, not a
+        // passive reload, so creating a tab is correct here).
+        setTabState((current) => openSessionTab(current, s.id));
         // Selecting the session must remount the chat with the session
         // present: useAgentSession loads content in a mount-only effect, so
         // the null-session welcome mount from the switch would never load
         // the restored session's messages.
         setSelectedSession(s);
         setSessionKey((k) => k + 1);
-        if (new URLSearchParams(window.location.search).get("session") !== s.id) {
-          router.replace(`?session=${encodeURIComponent(s.id)}`, { scroll: false });
-        }
       })
       .catch(() => {
         // Network hiccup: keep the remembered session for a later retry.
       });
-  }, [router]);
+  }, []);
 
   const handleCwdChange = useCallback((
     cwd: string | null,
@@ -775,6 +864,17 @@ export function AppShell() {
         return;
       }
     }
+    // Open or activate the session tab (functional update: the tab state may
+    // have been changed by a concurrent close/activate in the same tick).
+    // Restore calls (URL/session-list restore) must only activate an existing
+    // tab when a persisted tab set already exists — creating one would
+    // resurrect a closed session over localStorage (the source of truth).
+    // On first boot (no tabs yet) the URL restore legitimately opens the tab.
+    setTabState((current) => {
+      const existing = current.tabs.find((t) => t.sessionId === session.id);
+      if (isRestore && !existing && current.tabs.length > 0) return current;
+      return openSessionTab(current, session.id);
+    });
     setNewSessionCwd(null);
     setSelectedSession(session);
     setSessionKey((k) => k + 1);
@@ -798,6 +898,47 @@ export function AppShell() {
       router.replace(`?session=${encodeURIComponent(session.id)}`, { scroll: false });
     }
   }, [activeCwd, activeFileTabId, invalidateWorkspaceRestore, router, isMobile, newSessionCwd, selectedSession]);
+
+  // ── Session tab handlers (after handleSelectSession to avoid forward ref) ──
+  const handleTabActivate = useCallback((tabId: string) => {
+    setTabState((current) => {
+      const next = activateSessionTab(current, tabId);
+      return next;
+    });
+  }, []);
+
+  const handleTabClose = useCallback((tabId: string) => {
+    setTabState((current) => closeSessionTab(current, tabId));
+    // The adjacent-selection effect below will re-select the neighbor session
+    // once the tab state settles (avoids stale-closure over tabState here).
+  }, []);
+
+  // When tabs are loaded from localStorage and the catalog is available,
+  // activate the session for the active tab — also after tab switches/closes:
+  // this is the single place that maps activeTabId → selectedSession, so it
+  // can't race a stale tabState closure.
+  useEffect(() => {
+    if (!activeTabId) return;
+    const tab = sessionTabs.find((t) => t.id === activeTabId);
+    if (!tab) return;
+    if (selectedSession && selectedSession.id === tab.sessionId) return;
+    const session = sessionCatalog.find((s) => s.id === tab.sessionId);
+    if (session) handleSelectSession(session, true);
+  }, [activeTabId, sessionTabs, sessionCatalog, selectedSession, handleSelectSession]);
+
+  // Closing the last tab clears the chat: no tab means no session view (the
+  // welcome placeholder covers this until ticket 05 adds the real empty state).
+  // Also forget the workspace's last-open pointer so a reload doesn't
+  // resurrect the just-closed session.
+  useEffect(() => {
+    if (activeTabId || sessionTabs.length > 0) return;
+    if (selectedSession) {
+      clearLastOpen(workspaceKeyOf(selectedSession));
+      setSelectedSession(null);
+      setSessionKey((k) => k + 1);
+      setInitialSessionRestored(true);
+    }
+  }, [activeTabId, sessionTabs.length, selectedSession]);
 
   const handleNewSession = useCallback((sessionId: string, cwd: string) => {
     invalidateWorkspaceRestore();
@@ -862,6 +1003,9 @@ export function AppShell() {
     activeNewSessionDraftKeyRef.current = null;
     setNewSessionCwd(null);
     setSelectedSession(session);
+    setSessionKey((k) => k + 1);
+    // Open a tab for the newly created session
+    setTabState((current) => openSessionTab(current, session.id));
     hydrateSelectedSession(session.id);
     router.replace(`?session=${encodeURIComponent(session.id)}`, { scroll: false });
   }, [invalidateWorkspaceRestore, router, hydrateSelectedSession]);
@@ -988,6 +1132,8 @@ export function AppShell() {
       id: newSessionId,
       transient: false,
     }));
+    // Open a tab for the forked session
+    setTabState((current) => openSessionTab(current, newSessionId));
     hydrateSelectedSession(newSessionId);
     router.replace(`?session=${encodeURIComponent(newSessionId)}`, { scroll: false });
   }, [invalidateWorkspaceRestore, router, hydrateSelectedSession]);
@@ -1013,6 +1159,11 @@ export function AppShell() {
   const handleSessionDeleted = useCallback((sessionId: string) => {
     invalidateWorkspaceRestore();
     setRefreshKey((k) => k + 1);
+    // Close the tab for the deleted session
+    setTabState((current) => {
+      const tab = current.tabs.find((t) => t.sessionId === sessionId);
+      return tab ? closeSessionTab(current, tab.id) : current;
+    });
     if (selectedSession?.id === sessionId) {
       const cwd = selectedSession.cwd;
       const draftId = typeof crypto.randomUUID === "function"
@@ -1956,6 +2107,7 @@ export function AppShell() {
     `}</style>
     <div style={{
       display: "flex",
+      flexDirection: "column" as const,
       width: "100%",
       height: "var(--app-viewport-height, 100dvh)",
       paddingLeft: "env(safe-area-inset-left)",
@@ -1963,6 +2115,18 @@ export function AppShell() {
       overflow: "hidden",
       background: "var(--bg)",
     }}>
+      {/* Session tabs — full window width, above sidebar and center */}
+      <SessionTabBar
+        tabs={sessionTabs}
+        activeId={activeTabId}
+        onActivate={handleTabActivate}
+        onClose={handleTabClose}
+        sessionNames={sessionNameMap}
+        sessionCwds={sessionCwdMap}
+        sidebarOpen={sidebarOpen}
+        onSidebarToggle={handleSidebarToggle}
+      />
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
       {/* Mobile overlay backdrop */}
       <div
         className={`sidebar-overlay-backdrop${mobileSidebarReady ? "" : " sidebar-mobile-pending"}`}
@@ -2009,32 +2173,9 @@ export function AppShell() {
 
       {/* Center: chat */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
-        {/* Top bar with sidebar toggle */}
+        {/* Top bar */}
         <div ref={topBarRef} style={{ flexShrink: 0, background: "var(--bg-panel)" }}>
         <div style={{ display: "flex", alignItems: "center", position: "relative", borderBottom: "1px solid var(--border)", height: "calc(36px + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}>
-          <button
-            onClick={handleSidebarToggle}
-             title={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
-             aria-label={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0,
-              background: "none", border: "none", borderRight: "1px solid var(--border)",
-              color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, transition: "color 0.12s",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
-          >
-            {sidebarOpen ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" />
-              </svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            )}
-          </button>
           {isMobile && (
             <div
               ref={mobileToolbarRef}
@@ -2660,6 +2801,8 @@ export function AppShell() {
             </div>
           ))}
         </div>
+      </div>
+      {/* /row */}
       </div>
     </div>
     {settingsSection && (

@@ -6,7 +6,12 @@ const source = await readFile(new URL("./AppShell.tsx", import.meta.url), "utf8"
 
 function fileContentBlock() {
   const start = source.indexOf("{/* Only the active viewer");
-  const end = source.indexOf("</div>\n      </div>\n    </div>", start);
+  // The session-tab layout wraps the main row in an extra div, so the file
+  // block's terminal sequence gained a nesting level. Accept either shape.
+  const end = [
+    source.indexOf("</div>\n      </div>\n      {/* /row */}", start),
+    source.indexOf("</div>\n      </div>\n    </div>", start),
+  ].find((i) => i !== -1) ?? -1;
   assert.notEqual(start, -1, "file content comment not found");
   assert.notEqual(end, -1, "end of file content block not found");
   return source.slice(start, end);
@@ -23,9 +28,10 @@ test("the active viewer restores tab state and saves it with a revision", () => 
   const block = fileContentBlock();
   assert.match(block, /key=\{`\$\{activeFileTab\.id\}:\$\{activeFileTab\.viewerRevision \?\? 0\}`\}/);
   assert.match(block, /initialState=\{activeFileTab\.viewerState\}/);
-  assert.match(block, /handleFileViewerStateChange\(\s*activeFileTab\.id,\s*activeFileTab\.viewerRevision \?\? 0,/);
+  assert.match(block, /onStateChange=\{\(viewerState\) => handleFileViewerStateChange\(/);
 });
 
 test("closing the file panel pauses the active viewer watcher", () => {
-  assert.match(fileContentBlock(), /watchEnabled=\{rightPanelOpen\}/);
+  const block = fileContentBlock();
+  assert.match(block, /watchEnabled=\{rightPanelOpen\}/);
 });
