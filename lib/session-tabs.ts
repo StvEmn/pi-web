@@ -8,10 +8,15 @@
  */
 
 export interface SessionTab {
-  /** Stable unique id for this tab (crypto.randomUUID). */
+  /** Stable unique id for this tab. For draft tabs this is the client-side
+   * temporary session id, which is also the draft-store key component
+   * (`new:${tempId}:${cwd}`) used by the composer. */
   id: string;
-  /** The session displayed in this tab. Always set for non-draft tabs. */
-  sessionId: string;
+  /** The session displayed in this tab. Undefined for draft tabs. */
+  sessionId?: string;
+  /** Draft tab: the cwd the new session will be created in.
+   * Undefined for tabs bound to a real session. */
+  draftCwd?: string;
 }
 
 export interface TabState {
@@ -54,16 +59,14 @@ export function loadTabs(
     const tabs = Array.isArray(obj.tabs) ? obj.tabs : [];
     const validTabs: SessionTab[] = [];
     for (const tab of tabs) {
-      if (
-        tab &&
-        typeof tab === "object" &&
-        typeof (tab as SessionTab).id === "string" &&
-        typeof (tab as SessionTab).sessionId === "string"
-      ) {
-        validTabs.push({
-          id: (tab as SessionTab).id,
-          sessionId: (tab as SessionTab).sessionId,
-        });
+      if (!tab || typeof tab !== "object") continue;
+      const { id, sessionId, draftCwd } = tab as SessionTab;
+      if (typeof id !== "string" || id.length === 0) continue;
+      if (typeof sessionId === "string") {
+        validTabs.push({ id, sessionId });
+      } else if (typeof draftCwd === "string") {
+        // Draft tab: valid only with its cwd (a draft without one is useless).
+        validTabs.push({ id, draftCwd });
       }
     }
     const activeId =
@@ -129,6 +132,35 @@ export function closeTab(
   return { tabs: newTabs, activeId: newActiveId };
 }
 
+/**
+ * Open a draft tab for a new session in `cwd`, or activate its existing tab.
+ * The draft tab's id is the caller-provided temporary session id, so the
+ * composer's draft-store key (`new:${tempId}:${cwd}`) is stable across tab
+ * switches and the tab can be promoted in place later.
+ */
+export function openDraftTab(state: TabState, draftTabId: string, cwd: string): TabState {
+  const existing = state.tabs.find((t) => t.id === draftTabId);
+  if (existing) return { tabs: state.tabs, activeId: draftTabId };
+  const newTab: SessionTab = { id: draftTabId, draftCwd: cwd };
+  return { tabs: [...state.tabs, newTab], activeId: newTab.id };
+}
+
+/**
+ * Promote a draft tab in place once pi assigned the real session id: same
+ * position, same tab id, `sessionId` replaces the draft marker. If no matching
+ * draft tab exists (e.g. it was closed between send and callback), falls back
+ * to opening a regular tab for the session.
+ */
+export function promoteDraft(state: TabState, draftTabId: string, sessionId: string): TabState {
+  const idx = state.tabs.findIndex(
+    (t) => t.id === draftTabId && t.draftCwd !== undefined,
+  );
+  if (idx === -1) return openTab(state, sessionId);
+  const tabs = state.tabs.slice();
+  tabs[idx] = { id: draftTabId, sessionId };
+  return { tabs, activeId: state.activeId };
+}
+
 /** Activate a tab by id. No-op if the tab doesn't exist. */
 export function activateTab(state: TabState, tabId: string): TabState {
   if (!state.tabs.some((t) => t.id === tabId)) return state;
@@ -190,6 +222,7 @@ export function initTabs(
 export function buildUrlSearch(activeId: string | null, tabs: readonly SessionTab[]): string {
   if (!activeId) return "";
   const tab = tabs.find((t) => t.id === activeId);
-  if (!tab) return "";
+  // Draft tabs have no session id yet — mirror no ?session param.
+  if (!tab || tab.sessionId === undefined) return "";
   return `?session=${encodeURIComponent(tab.sessionId)}`;
 }

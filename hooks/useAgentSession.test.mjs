@@ -184,8 +184,15 @@ test("stale fresh-session completion cannot replace the active composer", () => 
     appShellSource.indexOf("  const handleAgentEnd = useCallback"),
   );
 
-  assert.match(newSessionSource, /const draftKey = `new:\$\{sessionId\}:\$\{cwd\}`/);
-  assert.match(newSessionSource, /activeNewSessionDraftKeyRef\.current = draftKey/);
+  // The draft key/ref assignment now lives in handleEnterDraftTab (shared by
+  // tab switches) and the ref-sync layout effect; handleNewSession only opens
+  // the draft tab.
+  assert.match(newSessionSource, /setTabState\(\(current\) => openDraftTab\(current, sessionId, cwd\)\)/);
+  assert.doesNotMatch(newSessionSource, /activeNewSessionDraftKeyRef\.current =/);
+  assert.match(
+    appShellSource,
+    /const handleEnterDraftTab = useCallback\(\(tab: SessionTab\)[\s\S]*?const activeKey = activeNewSessionDraftKeyRef\.current;[\s\S]*?activeKey === draftKey && selectedSession === null/,
+  );
   assert.match(createdSource, /activeNewSessionDraftKeyRef\.current !== sourceDraftKey/);
   assert.match(cwdChangeSource, /const currentFreshCwd = newSessionCwd \?\? activeCwd/);
   assert.match(

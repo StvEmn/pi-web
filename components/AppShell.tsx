@@ -6,7 +6,7 @@ import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
 import type { ChatScrollPosition } from "@/lib/chat-scroll-position";
-import { type TabState, loadTabs, saveTabs, openTab as openSessionTab, closeTab as closeSessionTab, activateTab as activateSessionTab, initTabs as initSessionTabs, buildUrlSearch } from "@/lib/session-tabs";
+import { type SessionTab, type TabState, loadTabs, saveTabs, openTab as openSessionTab, openDraftTab, promoteDraft, closeTab as closeSessionTab, activateTab as activateSessionTab, initTabs as initSessionTabs, buildUrlSearch } from "@/lib/session-tabs";
 import { FileViewer } from "./FileViewer";
 import { SessionTabBar } from "./SessionTabBar";
 import { TabBar, type Tab } from "./TabBar";
@@ -38,7 +38,7 @@ import {
 } from "@/lib/browser-notifications";
 import { setupPushSubscription } from "@/lib/push-client";
 import { getInitialNavigation } from "@/lib/initial-navigation";
-import { rekeyDraft } from "@/lib/draft-store";
+import { rekeyDraft, clearDraft, getDraft } from "@/lib/draft-store";
 import {
   clearLastOpen,
   getLastOpenSession,
@@ -78,6 +78,13 @@ const AGENT_PANEL_WIDTH = 420;
 
 function parkedNewSessionDraftKey(cwd: string): string {
   return `parked-new:${cwd}`;
+}
+
+// Per-tab parking slot: a draft tab parks its composer text here when the
+// composer unmounts (switching tabs), so coexisting drafts never share the
+// per-cwd parked key.
+function parkedDraftTabKey(tabId: string): string {
+  return `parked-new:${tabId}`;
 }
 
 export function AppShell() {
@@ -908,10 +915,67 @@ export function AppShell() {
   }, []);
 
   const handleTabClose = useCallback((tabId: string) => {
+    // Pure-draft tab: drop its composer draft so nothing lingers behind.
+    // Guarded on the active key so closing a background draft never clears
+    // the active composer's state.
+    const closed = sessionTabs.find((t) => t.id === tabId);
+    if (closed?.draftCwd !== undefined) {
+      const draftKey = `new:${closed.id}:${closed.draftCwd}`;
+      clearDraft(draftKey);
+      clearDraft(parkedDraftTabKey(closed.id));
+      if (activeNewSessionDraftKeyRef.current === draftKey) {
+        activeNewSessionDraftKeyRef.current = null;
+        setNewSessionCwd((prev) => (prev === closed.draftCwd ? null : prev));
+        setNewSessionDraftId((prev) => (prev === closed.id ? "initial" : prev));
+      }
+    }
     setTabState((current) => closeSessionTab(current, tabId));
     // The adjacent-selection effect below will re-select the neighbor session
     // once the tab state settles (avoids stale-closure over tabState here).
-  }, []);
+  }, [sessionTabs]);
+
+  // Enter a draft tab's empty-composer state. The composer's draft-store key
+  // is derived from the tab id, so it is stable across switch-away/switch-back
+  // and multiple drafts in the same project never share input. Shared by the
+  // sidebar "+", the keyboard shortcut (via handleNewSession's tab), and tab
+  // switches — the active-tab→view effect below is the single tab-state caller.
+  const handleEnterDraftTab = useCallback((tab: SessionTab) => {
+    if (tab.draftCwd === undefined) return;
+    invalidateWorkspaceRestore();
+    const draftKey = `new:${tab.id}:${tab.draftCwd}`;
+    const activeKey = activeNewSessionDraftKeyRef.current;
+    if (activeKey === draftKey && selectedSession === null) return;
+    // Park the outgoing composer's draft before it unmounts (useAgentSession
+    // clears the live key on unmount). A draft tab parks into its own slot;
+    // a non-tab composer parks into the per-cwd shared slot as before.
+    if (activeKey) {
+      const owner = sessionTabs.find(
+        (t) => t.draftCwd !== undefined && `new:${t.id}:${t.draftCwd}` === activeKey,
+      );
+      if (owner) {
+        rekeyDraft(activeKey, parkedDraftTabKey(owner.id));
+      } else {
+        const activeDraftCwd = newSessionCwd ?? (selectedSession === null ? activeCwd : null);
+        if (activeDraftCwd) rekeyDraft(activeKey, parkedNewSessionDraftKey(activeDraftCwd));
+      }
+    }
+    // Restore this tab's own parked text; a freshly opened tab inherits the
+    // project's shared parked composer draft (pre-existing "new session" UX).
+    const ownSlot = parkedDraftTabKey(tab.id);
+    rekeyDraft(getDraft(ownSlot) ? ownSlot : parkedNewSessionDraftKey(tab.draftCwd), draftKey);
+    setNewSessionDraftId(tab.id);
+    setNewSessionCwd(tab.draftCwd);
+    setSelectedSession(null);
+    setSessionKey((k) => k + 1);
+    setBranchTree([]);
+    setBranchActiveLeafId(null);
+    branchLeafChangeFnRef.current = null;
+    setSystemPrompt(null);
+    setSystemTools(null);
+    setSystemInfoLoading(false);
+    setActiveTopPanel(null);
+    if (isMobile) setSidebarOpen(false);
+  }, [invalidateWorkspaceRestore, sessionTabs, selectedSession, newSessionCwd, activeCwd, isMobile]);
 
   // When tabs are loaded from localStorage and the catalog is available,
   // activate the session for the active tab — also after tab switches/closes:
@@ -921,10 +985,14 @@ export function AppShell() {
     if (!activeTabId) return;
     const tab = sessionTabs.find((t) => t.id === activeTabId);
     if (!tab) return;
+    if (tab.draftCwd !== undefined) {
+      handleEnterDraftTab(tab);
+      return;
+    }
     if (selectedSession && selectedSession.id === tab.sessionId) return;
     const session = sessionCatalog.find((s) => s.id === tab.sessionId);
     if (session) handleSelectSession(session, true);
-  }, [activeTabId, sessionTabs, sessionCatalog, selectedSession, handleSelectSession]);
+  }, [activeTabId, sessionTabs, sessionCatalog, selectedSession, handleSelectSession, handleEnterDraftTab]);
 
   // Closing the last tab clears the chat: no tab means no session view (the
   // welcome placeholder covers this until ticket 05 adds the real empty state).
@@ -942,22 +1010,12 @@ export function AppShell() {
 
   const handleNewSession = useCallback((sessionId: string, cwd: string) => {
     invalidateWorkspaceRestore();
-    const draftKey = `new:${sessionId}:${cwd}`;
-    rekeyDraft(parkedNewSessionDraftKey(cwd), draftKey);
-    activeNewSessionDraftKeyRef.current = draftKey;
-    setNewSessionDraftId(sessionId);
-    setSelectedSession(null);
-    setNewSessionCwd(cwd);
-    setSessionKey((k) => k + 1);
-    setBranchTree([]);
-    setBranchActiveLeafId(null);
-    setSystemPrompt(null);
-    setSystemTools(null);
-    setSystemInfoLoading(false);
-    setActiveTopPanel(null);
+    // Open a draft tab; the active-tab→view effect above enters the empty
+    // composer state for it (selectedSession null + newSessionCwd), so the
+    // sidebar "+" and the keyboard shortcut share the tab-switch path.
+    setTabState((current) => openDraftTab(current, sessionId, cwd));
     if (isMobile) setSidebarOpen(false);
-    router.replace(typeof window !== "undefined" ? window.location.pathname : "/", { scroll: false });
-  }, [invalidateWorkspaceRestore, router, isMobile]);
+  }, [invalidateWorkspaceRestore, isMobile]);
 
   // Global keyboard shortcuts (handles Esc, Ctrl+Alt+N etc.)
   useGlobalKeyboardShortcuts({
@@ -1004,11 +1062,13 @@ export function AppShell() {
     setNewSessionCwd(null);
     setSelectedSession(session);
     setSessionKey((k) => k + 1);
-    // Open a tab for the newly created session
-    setTabState((current) => openSessionTab(current, session.id));
+    // Promote the draft tab in place: same position, same tab id, real
+    // sessionId/title/URL mirror updates. Falls back to opening a fresh tab
+    // if the draft tab is already gone (closed between send and callback).
+    setTabState((current) => promoteDraft(current, newSessionDraftId, session.id));
     hydrateSelectedSession(session.id);
     router.replace(`?session=${encodeURIComponent(session.id)}`, { scroll: false });
-  }, [invalidateWorkspaceRestore, router, hydrateSelectedSession]);
+  }, [invalidateWorkspaceRestore, router, hydrateSelectedSession, newSessionDraftId]);
 
   const deliverSessionNotification = useCallback(({
     targetSession,

@@ -651,5 +651,6 @@ export const zhCNLocale: LocalePlugin = {
     "i18n.extensionInputNeeded": "扩展正在等待你的输入。",
     "sessionTabs.ariaLabel": "会话标签页",
     "sessionTabs.closeTabNamed": "关闭标签页 {title}",
+    "sessionTabs.newTab": "新会话",
   },
 };

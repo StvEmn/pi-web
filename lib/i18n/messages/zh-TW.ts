@@ -651,5 +651,6 @@ export const zhTWLocale: LocalePlugin = {
     "i18n.extensionInputNeeded": "擴充功能正在等待你的輸入。",
     "sessionTabs.ariaLabel": "工作階段標籤頁",
     "sessionTabs.closeTabNamed": "關閉標籤頁 {title}",
+    "sessionTabs.newTab": "新會話",
   },
 };

@@ -22,6 +22,7 @@ test("explicit context changes invalidate a pending workspace restore", () => {
   const callbacks = [
     ["handleCwdChange", "handleSelectSession"],
     ["handleSelectSession", "handleNewSession"],
+    ["handleEnterDraftTab", "handleNewSession"],
     ["handleNewSession", "hydrateSelectedSession"],
     ["handleSessionCreated", "handleAgentEnd"],
     ["handleSessionForked", "handleInitialRestoreDone"],
@@ -59,6 +60,7 @@ test("New restores the draft after session navigation and workspace auto-restore
   const callbacks = [
     callbackBody("restoreWorkspaceContext", "handleCwdChange"),
     callbackBody("handleCwdChange", "handleSelectSession"),
+    // The handleSelectSession slice already contains handleEnterDraftTab.
     callbackBody("handleSelectSession", "handleNewSession"),
     callbackBody("handleNewSession", "hydrateSelectedSession"),
   ].join("\n");
@@ -129,7 +131,7 @@ test("New restores the draft after session navigation and workspace auto-restore
         };
       }
       vm.runInContext(stripTypeScriptTypes(`${parkedKeyHelper}\n${callbacks}
-        globalThis.navigate = { handleCwdChange, handleSelectSession, handleNewSession };
+        globalThis.navigate = { handleCwdChange, handleSelectSession, handleNewSession, handleEnterDraftTab };
       `), context);
       // Run the actual hook cleanup with the outgoing mount's captured draft key.
       const makeCleanup = vm.runInContext(stripTypeScriptTypes(`((isNew, newSessionDraftKey) => {
@@ -140,6 +142,12 @@ test("New restores the draft after session navigation and workspace auto-restore
       let mountedKey = context.sessionKey;
       let cleanup = makeCleanup(true, context.activeNewSessionDraftKeyRef.current);
       async function commit() {
+        // Emulate the active-tab → view mapping effect: entering the active
+        // draft tab (guard and idempotency live inside the callback).
+        const activeTab = context.tabState.tabs.find((t) => t.id === context.tabState.activeId);
+        if (activeTab?.draftCwd !== undefined) {
+          context.navigate.handleEnterDraftTab(activeTab);
+        }
         if (mountedKey !== context.sessionKey) {
           cleanup();
           mountedKey = context.sessionKey;

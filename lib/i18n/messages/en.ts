@@ -651,5 +651,6 @@ export const enLocale: LocalePlugin = {
     "i18n.extensionInputNeeded": "An extension is waiting for your input.",
     "sessionTabs.ariaLabel": "Session tabs",
     "sessionTabs.closeTabNamed": "Close tab {title}",
+    "sessionTabs.newTab": "New session",
   },
 };

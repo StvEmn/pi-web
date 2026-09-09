@@ -111,9 +111,13 @@ export function SessionTabBar({
       >
         {tabs.map((tab) => {
           const isActive = tab.id === activeId;
-          const title =
-            sessionNames.get(tab.sessionId) ?? tab.sessionId;
-          const cwd = sessionCwds.get(tab.sessionId) ?? "";
+          const isDraft = tab.draftCwd !== undefined;
+          const title = isDraft
+            ? translate("sessionTabs.newTab")
+            : tab.sessionId !== undefined
+              ? sessionNames.get(tab.sessionId) ?? tab.sessionId
+              : "";
+          const cwd = isDraft ? tab.draftCwd : sessionCwds.get(tab.sessionId ?? "") ?? "";
           return (
             <div
               key={tab.id}

@@ -21,6 +21,11 @@ test("each tab has an aria-label for the session title", () => {
   assert.match(source, /aria-label=\{title\}/);
 });
 
+test("draft tabs render the translated \u65b0\u4f1a\u8bdd title", () => {
+  assert.match(source, /const isDraft = tab\.draftCwd !== undefined;/);
+  assert.match(source, /isDraft\s*\n\s*\? translate\("sessionTabs\.newTab"\)/);
+});
+
 test("close button has accessible label", () => {
   assert.match(source, /aria-label=\{translate\("sessionTabs\.closeTabNamed", \{ title \}\)\}/);
 });
