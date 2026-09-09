@@ -220,9 +220,8 @@ try {
     .getByRole("tab", { name: "New session" });
   await draftTab.waitFor();
   assert.equal(await draftTab.getAttribute("aria-selected"), "true");
-  assert.equal(
-    await draftTab.getAttribute("title"),
-    projectB,
+  assert.ok(
+    (await draftTab.getAttribute("title"))?.includes(projectB),
     "Draft tab carries the group's cwd",
   );
   // router.replace is async — poll briefly for the URL sync effect to strip ?session.

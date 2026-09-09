@@ -6,7 +6,7 @@ import { useGlobalKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { SessionSidebar } from "./SessionSidebar";
 import { ChatWindow } from "./ChatWindow";
 import type { ChatScrollPosition } from "@/lib/chat-scroll-position";
-import { type SessionTab, type TabState, loadTabs, saveTabs, openTab as openSessionTab, openDraftTab, promoteDraft, closeTab as closeSessionTab, activateTab as activateSessionTab, initTabs as initSessionTabs, buildUrlSearch } from "@/lib/session-tabs";
+import { type SessionTab, type TabState, loadTabs, saveTabs, openTab as openSessionTab, openDraftTab, promoteDraft, closeTab as closeSessionTab, activateTab as activateSessionTab, closeOthers as closeOtherSessionTabs, closeRight as closeRightSessionTabs, initTabs as initSessionTabs, buildUrlSearch } from "@/lib/session-tabs";
 import { FileViewer } from "./FileViewer";
 import { SessionTabBar } from "./SessionTabBar";
 import { TabBar, type Tab } from "./TabBar";
@@ -907,6 +907,22 @@ export function AppShell() {
   }, [activeCwd, activeFileTabId, invalidateWorkspaceRestore, router, isMobile, newSessionCwd, selectedSession]);
 
   // ── Session tab handlers (after handleSelectSession to avoid forward ref) ──
+  // Draft-tab cleanup shared by every close path: drop the closed draft's
+  // composer text so nothing lingers behind.
+  const clearClosedDraftTabs = useCallback((closedTabs: readonly SessionTab[]) => {
+    for (const closed of closedTabs) {
+      if (closed.draftCwd === undefined) continue;
+      const draftKey = `new:${closed.id}:${closed.draftCwd}`;
+      clearDraft(draftKey);
+      clearDraft(parkedDraftTabKey(closed.id));
+      if (activeNewSessionDraftKeyRef.current === draftKey) {
+        activeNewSessionDraftKeyRef.current = null;
+        setNewSessionCwd((prev) => (prev === closed.draftCwd ? null : prev));
+        setNewSessionDraftId((prev) => (prev === closed.id ? "initial" : prev));
+      }
+    }
+  }, []);
+
   const handleTabActivate = useCallback((tabId: string) => {
     setTabState((current) => {
       const next = activateSessionTab(current, tabId);
@@ -919,20 +935,25 @@ export function AppShell() {
     // Guarded on the active key so closing a background draft never clears
     // the active composer's state.
     const closed = sessionTabs.find((t) => t.id === tabId);
-    if (closed?.draftCwd !== undefined) {
-      const draftKey = `new:${closed.id}:${closed.draftCwd}`;
-      clearDraft(draftKey);
-      clearDraft(parkedDraftTabKey(closed.id));
-      if (activeNewSessionDraftKeyRef.current === draftKey) {
-        activeNewSessionDraftKeyRef.current = null;
-        setNewSessionCwd((prev) => (prev === closed.draftCwd ? null : prev));
-        setNewSessionDraftId((prev) => (prev === closed.id ? "initial" : prev));
-      }
-    }
+    clearClosedDraftTabs(closed ? [closed] : []);
     setTabState((current) => closeSessionTab(current, tabId));
     // The adjacent-selection effect below will re-select the neighbor session
     // once the tab state settles (avoids stale-closure over tabState here).
-  }, [sessionTabs]);
+  }, [sessionTabs, clearClosedDraftTabs]);
+
+  // Close every tab except the right-clicked one (which becomes active).
+  const handleTabCloseOthers = useCallback((tabId: string) => {
+    clearClosedDraftTabs(sessionTabs.filter((t) => t.id !== tabId));
+    setTabState((current) => closeOtherSessionTabs(activateSessionTab(current, tabId)));
+  }, [sessionTabs, clearClosedDraftTabs]);
+
+  // Close every tab to the right of the right-clicked one (which becomes active).
+  const handleTabCloseRight = useCallback((tabId: string) => {
+    const idx = sessionTabs.findIndex((t) => t.id === tabId);
+    if (idx === -1) return;
+    clearClosedDraftTabs(sessionTabs.slice(idx + 1));
+    setTabState((current) => closeRightSessionTabs(activateSessionTab(current, tabId)));
+  }, [sessionTabs, clearClosedDraftTabs]);
 
   // Enter a draft tab's empty-composer state. The composer's draft-store key
   // is derived from the tab id, so it is stable across switch-away/switch-back
@@ -1305,6 +1326,7 @@ export function AppShell() {
 
   const handleViewFullHistory = useCallback(() => {
     if (!selectedSession) return;
+    // pi-lens-ignore: slop
     window.open(
       `/api/sessions/${encodeURIComponent(selectedSession.id)}/export?inline=1`,
       "_blank",
@@ -2181,6 +2203,9 @@ export function AppShell() {
         activeId={activeTabId}
         onActivate={handleTabActivate}
         onClose={handleTabClose}
+        onCloseOthers={handleTabCloseOthers}
+        onCloseRight={handleTabCloseRight}
+        runningSessionIds={runningSessionIds}
         sessionNames={sessionNameMap}
         sessionCwds={sessionCwdMap}
         sidebarOpen={sidebarOpen}

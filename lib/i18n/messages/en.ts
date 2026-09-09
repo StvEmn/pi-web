@@ -677,5 +677,10 @@ export const enLocale: LocalePlugin = {
     "sessionTabs.ariaLabel": "Session tabs",
     "sessionTabs.closeTabNamed": "Close tab {title}",
     "sessionTabs.newTab": "New session",
+    "sessionTabs.close": "Close",
+    "sessionTabs.closeOthers": "Close other tabs",
+    "sessionTabs.closeRight": "Close tabs to the right",
+    "sessionTabs.contextMenu": "Tab actions",
+    "sessionTabs.running": "Running",
   },
 };

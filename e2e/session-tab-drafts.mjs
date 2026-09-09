@@ -141,7 +141,10 @@ try {
   await draftTab1.waitFor();
   assert.equal(await draftTab1.getAttribute("aria-selected"), "true");
   await waitFor(() => new URL(page.url()).searchParams.get("session") === null, "draft tab strips ?session");
-  assert.equal(await draftTab1.getAttribute("title"), projectA, "Draft tab tooltip shows the draft cwd");
+  assert.ok(
+    (await draftTab1.getAttribute("title"))?.includes(projectA),
+    "Draft tab tooltip shows the draft cwd",
+  );
   console.log("PASS: clicking New opens an active draft tab titled 'New session', URL has no ?session");
 
   // Type a composer draft so we can verify it survives tab switches

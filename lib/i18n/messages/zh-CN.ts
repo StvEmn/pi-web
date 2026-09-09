@@ -659,5 +659,10 @@ export const zhCNLocale: LocalePlugin = {
     "sessionTabs.ariaLabel": "会话标签页",
     "sessionTabs.closeTabNamed": "关闭标签页 {title}",
     "sessionTabs.newTab": "新会话",
+    "sessionTabs.close": "关闭",
+    "sessionTabs.closeOthers": "关闭其他标签页",
+    "sessionTabs.closeRight": "关闭右侧标签页",
+    "sessionTabs.contextMenu": "标签页操作",
+    "sessionTabs.running": "运行中",
   },
 };

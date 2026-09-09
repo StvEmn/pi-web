@@ -7,6 +7,8 @@
  *
  */
 
+import { projectDisplayName } from "./project-groups";
+
 export interface SessionTab {
   /** Stable unique id for this tab. For draft tabs this is the client-side
    * temporary session id, which is also the draft-store key component
@@ -181,6 +183,57 @@ export function closeRight(state: TabState): TabState {
   const idx = state.tabs.findIndex((t) => t.id === state.activeId);
   if (idx === -1) return state;
   return { tabs: state.tabs.slice(0, idx + 1), activeId: state.activeId };
+}
+
+// ── Tab display titles ───────────────────────────────────────────────────────
+
+export interface TabTitleContext {
+  /** All currently open tabs — needed to detect multi-project spans. */
+  tabs: readonly SessionTab[];
+  /** sessionId → display name. */
+  sessionNames: ReadonlyMap<string, string>;
+  /** sessionId → project root (cwd). */
+  sessionCwds: ReadonlyMap<string, string>;
+}
+
+export interface TabDisplayTitle {
+  /** Raw title: session display name, or null for draft tabs (the caller
+   * supplies the translated "New session" label). */
+  title: string | null;
+  /** Full cwd for the tooltip. Empty when unknown. */
+  cwd: string;
+  /** Project name prefix, shown only when open tabs span ≥2 distinct
+   * projects. Never set for draft tabs (their title stays "New session"),
+   * but draft cwds do count toward the ≥2-project determination. */
+  projectPrefix?: string;
+}
+
+/**
+ * Compute the display title parts for one tab. Pure: same inputs → same
+ * output. Project prefix appears only when the open tabs collectively cover
+ * ≥2 distinct project roots (session cwds plus draft cwds).
+ */
+export function tabDisplayTitle(
+  tab: SessionTab,
+  ctx: TabTitleContext,
+): TabDisplayTitle {
+  const isDraft = tab.draftCwd !== undefined;
+  const cwd = isDraft ? (tab.draftCwd ?? "") : ctx.sessionCwds.get(tab.sessionId ?? "") ?? "";
+  let title: string | null = null;
+  if (!isDraft) {
+    title =
+      tab.sessionId !== undefined
+        ? ctx.sessionNames.get(tab.sessionId) ?? tab.sessionId
+        : "";
+  }
+  // Distinct project roots across all open tabs; draft cwds count too.
+  const roots = new Set<string>();
+  for (const t of ctx.tabs) {
+    const root = t.draftCwd ?? (t.sessionId !== undefined ? ctx.sessionCwds.get(t.sessionId) : undefined);
+    if (root) roots.add(root);
+  }
+  const projectPrefix = !isDraft && cwd && roots.size >= 2 ? projectDisplayName(cwd) : undefined;
+  return { title, cwd, projectPrefix };
 }
 
 /**

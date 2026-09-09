@@ -18,14 +18,20 @@ mkdirSync(artifacts, { recursive: true });
 
 const agentDir = mkdtempSync(join(tmpdir(), "pi-web-tabs-e2e-"));
 
-// Both sessions live in the same project, so both sit in one sidebar group.
+// Fixture: 3 sessions — A and B in project-a, C in project-b (cross-project
+// tab prefix scenario, ticket 04).
 const projectA = join(agentDir, "project-a");
+const projectB = join(agentDir, "project-b");
 const sessionDirA = join(agentDir, "sessions", "project-a");
+const sessionDirB = join(agentDir, "sessions", "project-b");
 mkdirSync(projectA, { recursive: true });
+mkdirSync(projectB, { recursive: true });
 mkdirSync(sessionDirA, { recursive: true });
+mkdirSync(sessionDirB, { recursive: true });
 
 const SESSION_A = "tabs-e2e-session-a";
 const SESSION_B = "tabs-e2e-session-b";
+const SESSION_C = "tabs-e2e-session-c";
 
 // Fixture: 2 sessions in different projects
 const sessionAEntries = [
@@ -57,6 +63,16 @@ writeSession(
     message("b1", "b0", "assistant", "Session B assistant reply"),
   ],
   projectA,
+);
+
+writeSession(
+  sessionDirB,
+  SESSION_C,
+  [
+    message("c0", null, "user", "Session C first message"),
+    message("c1", "c0", "assistant", "Session C assistant reply"),
+  ],
+  projectB,
 );
 
 let server;
@@ -124,7 +140,7 @@ try {
     if (response?.ok) {
       const { sessions } = await response.json();
       const ids = sessions.map((s) => s.id).sort();
-      assert.deepEqual(ids, [SESSION_A, SESSION_B].sort());
+      assert.deepEqual(ids, [SESSION_A, SESSION_B, SESSION_C].sort());
       break;
     }
     assert.ok(Date.now() < deadline, "Server readiness timed out");
@@ -300,6 +316,101 @@ try {
     `Scroll position must restore (before=${scrollTopBefore}, after=${scrollTopAfter})`,
   );
   console.log("PASS: scroll position restores after tab switch");
+
+  // ── Keyboard: roving tabindex + arrow keys (ticket 04) ────────────────
+  // Tabs are [A, B], A active. Tab onto the tablist, then arrow around.
+  await tabA.focus();
+  assert.equal(await tabA.getAttribute("aria-selected"), "true");
+  await page.keyboard.press("ArrowRight");
+  await page
+    .getByText("Session B first message", { exact: true })
+    .first()
+    .waitFor();
+  assert.equal(await tabB.getAttribute("aria-selected"), "true");
+  assert.equal(await tabA.getAttribute("aria-selected"), "false");
+  await page.keyboard.press("Home");
+  await page
+    .getByText("Session A first message", { exact: true })
+    .first()
+    .waitFor();
+  assert.equal(await tabA.getAttribute("aria-selected"), "true");
+  await page.keyboard.press("End");
+  await page
+    .getByText("Session B first message", { exact: true })
+    .first()
+    .waitFor();
+  assert.equal(await tabB.getAttribute("aria-selected"), "true");
+  await page.keyboard.press("ArrowLeft");
+  await page
+    .getByText("Session A first message", { exact: true })
+    .first()
+    .waitFor();
+  assert.equal(await tabA.getAttribute("aria-selected"), "true");
+  console.log("PASS: arrow keys / Home / End move tab selection");
+
+  // ── Cross-project title prefix (ticket 04) ───────────────────────────
+  // Same-project tabs [A, B]: no prefix. Tooltip shows full title + cwd.
+  {
+    const titleAttr = await tabA.getAttribute("title");
+    assert.ok(!titleAttr.includes("·"), "single-project tab must have no prefix");
+    assert.ok(titleAttr.includes(projectA), `tooltip must include cwd: ${titleAttr}`);
+  }
+  // Open session C (project-b) — tabs now span 2 projects → prefix appears.
+  // The sidebar groups by project and starts with one group expanded; expand
+  // the project-b group first (ticket 03's group tree).
+  const groupB = page.getByRole("button", { name: "project-b", exact: true });
+  await groupB.waitFor();
+  if ((await groupB.getAttribute("aria-expanded")) !== "true") await groupB.click();
+  await page
+    .getByText("Session C first message", { exact: true })
+    .first()
+    .click();
+  await page
+    .getByText("Session C first message", { exact: true })
+    .first()
+    .waitFor();
+  const tabC = page.getByRole("tab", { name: /Session C first message/i });
+  await tabC.waitFor();
+  assert.equal(await tabC.getAttribute("aria-selected"), "true");
+  {
+    const titleA = await tabA.getAttribute("title");
+    assert.ok(
+      titleA.startsWith("project-a · "),
+      `cross-project tab A must carry a project prefix: ${titleA}`,
+    );
+    assert.ok(titleA.includes(projectA), "tooltip still includes cwd");
+    const titleC = await tabC.getAttribute("title");
+    assert.ok(
+      titleC.startsWith("project-b · "),
+      `cross-project tab C must carry a project prefix: ${titleC}`,
+    );
+  }
+  console.log("PASS: cross-project tabs show a project name prefix");
+
+  // ── Context menu: close right (ticket 04) ─────────────────────────
+  // Tabs are [A, B, C]; right-click the middle tab (B) → only its left side stays.
+  await tabB.click({ button: "right" });
+  const menu = page.getByRole("menu", { name: "Tab actions" });
+  await menu.waitFor();
+  assert.equal(await menu.getByRole("menuitem").count(), 3, "menu has three actions");
+  await menu.getByRole("menuitem", { name: "Close tabs to the right" }).click();
+  await tabC.waitFor({ state: "detached" });
+  assert.equal(await tablist.getByRole("tab").count(), 2, "close-right leaves the left 2 tabs");
+  {
+    // Back to a single project → prefix must disappear.
+    const titleA = await tabA.getAttribute("title");
+    assert.ok(!titleA.includes("·"), `prefix must disappear when back to one project: ${titleA}`);
+  }
+  console.log("PASS: context menu close-right leaves left tabs and drops the prefix");
+
+  // ── Context menu: close others (ticket 04) ──────────────────────────
+  await tabB.click({ button: "right" });
+  await page.getByRole("menu", { name: "Tab actions" }).waitFor();
+  await page.getByRole("menuitem", { name: "Close other tabs" }).click();
+  await tabA.waitFor({ state: "detached" });
+  assert.equal(await tablist.getByRole("tab").count(), 1, "close-others leaves only the target tab");
+  assert.equal(await tabB.getAttribute("aria-selected"), "true");
+  console.log("PASS: context menu close-others keeps only the right-clicked tab");
 
   assert.deepEqual(errors, [], "No browser errors");
   console.log("\nAll session tabs E2E tests passed!");

@@ -658,5 +658,10 @@ export const zhTWLocale: LocalePlugin = {
     "sessionTabs.ariaLabel": "工作階段標籤頁",
     "sessionTabs.closeTabNamed": "關閉標籤頁 {title}",
     "sessionTabs.newTab": "新會話",
+    "sessionTabs.close": "關閉",
+    "sessionTabs.closeOthers": "關閉其他標籤頁",
+    "sessionTabs.closeRight": "關閉右側標籤頁",
+    "sessionTabs.contextMenu": "標籤頁操作",
+    "sessionTabs.running": "執行中",
   },
 };
