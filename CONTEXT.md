@@ -4,6 +4,10 @@ Pi Web hosts coding-agent sessions for user-selected projects while keeping the 
 
 ## Language
 
+**Session Tab（会话标签页）**:
+A top-level browser-style tab that opens when the user selects a session, holding one session view at a time. Draft sessions (no message sent yet) appear as tabs too. Tabs are views, not sessions: closing a tab never stops the session.
+_Avoid_: Project tab, chat tab, panel tab (panel tab = the existing right-side file/terminal TabBar)
+
 **Host Runtime Environment**:
 The environment owned by the Pi Web server and its framework runtime.
 _Avoid_: Project environment, shell environment
