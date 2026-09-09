@@ -222,7 +222,7 @@ test("renders an all-projects group tree instead of the project dropdown", () =>
   );
   assert.match(
     source,
-    /listSessionFamilies\(sessionsForProject\(allSessions, project\.key\)\)/,
+    /listSessionFamilies\(\s*sessionsForProject\(allSessions, project\.key\),?\s*\)/,
   );
   assert.match(source, /aria-expanded=\{expanded\}/);
   assert.match(source, /projectDisplayName\(row\.group\.root\)/);
@@ -249,11 +249,11 @@ test("custom path and default directory entries survive the dropdown removal", (
 test("hides subagent rows and aggregates their state into the main session row", () => {
   assert.match(
     source,
-    /familySessions\.some\(\(session\) => session\.id === selectedSessionId\)/,
+    /familySessions\.some\(\s*\(session\) => session\.id === selectedSessionId,?\s*\)/,
   );
   assert.match(
     source,
-    /familySessions\.some\(\(session\) => runningSessionIds\.has\(session\.id\)\)/,
+    /familySessions\.some\(\(session\) =>\s*runningSessionIds\.has\(session\.id\),?\s*\)/,
   );
   assert.doesNotMatch(source, /function SessionTreeItem/);
 });

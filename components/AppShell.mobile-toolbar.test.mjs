@@ -27,7 +27,7 @@ test("uses a compact narrow-mobile toolbar with a floating action layer", () => 
 test("only renders the Agents switcher when the active session family has subagents", () => {
   assert.match(source, /const hasSubagentSessions = Boolean\(activeSessionFamily\?\.subagents\.length\)/);
   assert.match(source, /\{hasSubagentSessions && \(\s*<button[\s\S]*?toggleTopPanel\("agents", mobile\)/);
-  assert.match(source, /activeTopPanel === "agents" && activeSessionFamily && selectedSession/);
+  assert.match(source, /activeTopPanel === "agents" &&\s*activeSessionFamily &&\s*selectedSession/);
 });
 
 test("keeps the Agents panel open while switching sessions and positions it at the left", () => {
@@ -41,7 +41,7 @@ test("keeps the Agents panel open while switching sessions and positions it at t
 
 test("only renders branch toolbar controls for sessions with branches", () => {
   assert.match(source, /const sessionHasBranches = hasSessionBranches\(branchTree\)/);
-  assert.match(source, /\{sessionHasBranches && \(mobile \? \(/);
+  assert.match(source, /\{sessionHasBranches &&\s*\(mobile \? \(/);
   assert.match(source, /\{isMobile && sessionHasBranches && \(/);
   assert.match(source, /panel === "branches" \? null : panel/);
 });
@@ -61,9 +61,9 @@ test("closes the mobile action layer on outside click, Escape, layout changes, a
 });
 
 test("keeps the mobile action layer open after using an expanded action", () => {
-  const toggleTopPanel = source.match(/const toggleTopPanel = useCallback\([\s\S]*?\n  \}, \[isMobile, isNarrowMobile\]\);/)?.[0];
-  const historyHandler = source.match(/onClick=\{\(\) => \{[\s\S]*?handleViewFullHistory\(\);[\s\S]*?\n          \}\}/)?.[0];
-  const autoNameHandler = source.match(/onClick=\{\(\) => \{[\s\S]*?void handleAutoName\(\);[\s\S]*?\n              \}\}/)?.[0];
+  const toggleTopPanel = source.match(/const toggleTopPanel = useCallback\(\n    \([\s\S]*?\n    \},\n    \[isMobile, isNarrowMobile\],/)?.[0];
+  const historyHandler = source.match(/onClick=\{\(\) => \{[\s\S]*?handleViewFullHistory\(\);[\s\S]*?\n\s{10}\}\}/)?.[0];
+  const autoNameHandler = source.match(/onClick=\{\(\) => \{[\s\S]*?void handleAutoName\(\);[\s\S]*?\n\s{14}\}\}/)?.[0];
 
   for (const handler of [toggleTopPanel, historyHandler, autoNameHandler]) {
     assert.ok(handler);

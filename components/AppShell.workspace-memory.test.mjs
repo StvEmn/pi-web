@@ -48,14 +48,14 @@ test("all active-session transitions share one persistence effect", () => {
 });
 
 test("keeps chat scroll positions in page memory by session id", () => {
-  assert.match(source, /useRef\(new Map<string, ChatScrollPosition>\(\)\)/);
+  assert.match(source, /useRef\(\s*new Map<string, ChatScrollPosition>\(\),?\s*\)/);
   assert.match(
     source,
     /sessionScrollPositionsRef\.current\.set\(sessionId, position\)/,
   );
   assert.match(
     source,
-    /initialScrollPosition=\{selectedSession \? sessionScrollPositionsRef\.current\.get\(selectedSession\.id\) \?\? null : null\}/,
+    /initialScrollPosition=\{\s*selectedSession\s*\?\s*\(sessionScrollPositionsRef\.current\.get\(\s*selectedSession\.id,?\s*\) \?\? null\)\s*: null\s*\}/,
   );
   assert.match(
     source,

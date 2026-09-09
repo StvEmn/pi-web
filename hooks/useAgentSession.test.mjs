@@ -191,13 +191,13 @@ test("stale fresh-session completion cannot replace the active composer", () => 
   assert.doesNotMatch(newSessionSource, /activeNewSessionDraftKeyRef\.current =/);
   assert.match(
     appShellSource,
-    /const handleEnterDraftTab = useCallback\(\(tab: SessionTab\)[\s\S]*?const activeKey = activeNewSessionDraftKeyRef\.current;[\s\S]*?activeKey === draftKey && selectedSession === null/,
+    /const handleEnterDraftTab = useCallback\(\n    \(tab: SessionTab\)[\s\S]*?const activeKey = activeNewSessionDraftKeyRef\.current;[\s\S]*?activeKey === draftKey && selectedSession === null/,
   );
   assert.match(createdSource, /activeNewSessionDraftKeyRef\.current !== sourceDraftKey/);
   assert.match(cwdChangeSource, /const currentFreshCwd = newSessionCwd \?\? activeCwd/);
   assert.match(
     cwdChangeSource,
-    /currentProject === newProject\s*&& \(selectedSession !== null \|\| currentFreshCwd === cwd\)/,
+    /currentProject === newProject\s*&&\s*\(selectedSession !== null \|\| currentFreshCwd === cwd\)/,
   );
   assert.match(cwdChangeSource, /if \(currentProject !== newProject\) \{[\s\S]*?setFileTabs\(\[\]\)/);
   assert.match(
@@ -401,10 +401,10 @@ test("routes blocking extension requests through deduplicated browser attention 
   assert.match(chatWindowSource, /onAttentionNeeded, onSessionCreated/);
   assert.match(completionSource, /if \(!shouldShowBrowserNotification\(\)\) return/);
   assert.doesNotMatch(completionSource, /pushActive/);
-  assert.match(completionSource, /tag: targetSession \? `pi-session-complete:\$\{targetSession\.id\}`/);
+  assert.match(completionSource, /tag: targetSession\s*\? .pi-session-complete:\$\{targetSession\.id\}./);
   assert.doesNotMatch(completionSource, /document\.visibilityState === "visible"/);
   assert.match(attentionSource, /shouldShowBrowserNotification\(\)/);
-  assert.match(attentionSource, /claimExtensionAttentionNotification\(request, notifiedAttentionRequestIdsRef\.current\)/);
+  assert.match(attentionSource, /claimExtensionAttentionNotification\(\s*request,\s*notifiedAttentionRequestIdsRef\.current,?\s*\)/);
   assert.match(attentionSource, /tag: `pi-extension-ui:\$\{request\.id\}`/);
   assert.match(appShellSource, /onAttentionNeeded=\{handleAttentionNeeded\}/);
 });
