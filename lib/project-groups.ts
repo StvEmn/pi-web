@@ -9,7 +9,9 @@ export interface RecentProject {
 }
 
 /** Projects sorted by most recent activity and deduplicated by stable key. */
-export function getRecentProjects(sessions: readonly SessionInfo[]): RecentProject[] {
+export function getRecentProjects(
+  sessions: readonly SessionInfo[],
+): RecentProject[] {
   const latestByProject = new Map<string, { root: string; modified: string }>();
   for (const session of sessions) {
     const root = session.projectRoot ?? session.cwd;
@@ -43,6 +45,12 @@ export function getProjectActivity(
     if (unreadSessionIds.has(session.id)) entry.unread++;
   }
   return counts;
+}
+
+/** Last path segment of a project root, for compact group headers. */
+export function projectDisplayName(root: string): string {
+  const segments = root.split(/[\\/]/).filter(Boolean);
+  return segments[segments.length - 1] ?? root;
 }
 
 export function sessionsForProject(

@@ -18,8 +18,7 @@ mkdirSync(artifacts, { recursive: true });
 
 const agentDir = mkdtempSync(join(tmpdir(), "pi-web-tabs-e2e-"));
 
-// Both sessions live in the same project: the sidebar is still single-project
-// (project group tree is ticket 03), so only same-project sessions are visible together.
+// Both sessions live in the same project, so both sit in one sidebar group.
 const projectA = join(agentDir, "project-a");
 const sessionDirA = join(agentDir, "sessions", "project-a");
 mkdirSync(projectA, { recursive: true });
@@ -39,14 +38,26 @@ for (let i = 0; i < 20; i++) {
   // run of assistant-only messages collapses into one ProcessDetailsGroup,
   // which makes the chat too short to scroll (breaks the scroll-restore test).
   const role = i % 2 === 0 ? "user" : "assistant";
-  sessionAEntries.push(message(`a-fill-${i}`, parent, role, `Session A filler paragraph ${i}.\n\n`.repeat(10)));
+  sessionAEntries.push(
+    message(
+      `a-fill-${i}`,
+      parent,
+      role,
+      `Session A filler paragraph ${i}.\n\n`.repeat(10),
+    ),
+  );
 }
 writeSession(sessionDirA, SESSION_A, sessionAEntries, projectA);
 
-writeSession(sessionDirA, SESSION_B, [
-  message("b0", null, "user", "Session B first message"),
-  message("b1", "b0", "assistant", "Session B assistant reply"),
-], projectA);
+writeSession(
+  sessionDirA,
+  SESSION_B,
+  [
+    message("b0", null, "user", "Session B first message"),
+    message("b1", "b0", "assistant", "Session B assistant reply"),
+  ],
+  projectA,
+);
 
 let server;
 let serverExited;
@@ -55,7 +66,9 @@ const serverLog = createWriteStream(join(artifacts, "server.log"));
 
 const interrupt = () => {
   process.exitCode = 1;
-  try { server?.kill("SIGTERM"); } catch {}
+  try {
+    server?.kill("SIGTERM");
+  } catch {}
   void browser?.close().catch(() => {});
 };
 process.once("SIGINT", interrupt);
@@ -75,7 +88,14 @@ try {
   // Start dev server
   server = spawn(
     process.execPath,
-    [join(root, "node_modules/next/dist/bin/next"), "dev", "-H", "127.0.0.1", "-p", String(port)],
+    [
+      join(root, "node_modules/next/dist/bin/next"),
+      "dev",
+      "-H",
+      "127.0.0.1",
+      "-p",
+      String(port),
+    ],
     {
       cwd: root,
       env: {
@@ -129,7 +149,10 @@ try {
   await page.goto(`${base}/?session=${SESSION_A}`, {
     waitUntil: "domcontentloaded",
   });
-  await page.getByText("Session A first message", { exact: true }).first().waitFor();
+  await page
+    .getByText("Session A first message", { exact: true })
+    .first()
+    .waitFor();
 
   // Verify tab bar appeared with session A tab
   const tablist = page.getByRole("tablist", { name: "Session tabs" });
@@ -140,8 +163,14 @@ try {
   console.log("PASS: session A opens in a tab");
 
   // Click session B in the sidebar
-  await page.getByText("Session B first message", { exact: true }).first().click();
-  await page.getByText("Session B first message", { exact: true }).first().waitFor();
+  await page
+    .getByText("Session B first message", { exact: true })
+    .first()
+    .click();
+  await page
+    .getByText("Session B first message", { exact: true })
+    .first()
+    .waitFor();
 
   // Verify two tabs exist
   const tabB = page.getByRole("tab", { name: /Session B first message/i });
@@ -153,16 +182,29 @@ try {
   // Click tab A to reactivate. User messages never collapse into process
   // groups, so the first user message is the stable visibility anchor.
   await tabA.click();
-  await page.getByText("Session A first message", { exact: true }).first().waitFor();
+  await page
+    .getByText("Session A first message", { exact: true })
+    .first()
+    .waitFor();
   assert.equal(await tabA.getAttribute("aria-selected"), "true");
   assert.equal(await tabB.getAttribute("aria-selected"), "false");
   console.log("PASS: clicking tab A reactivates it, content correct");
 
   // Re-click session B in sidebar — should activate existing tab, not create new
-  await page.getByText("Session B first message", { exact: true }).first().click();
-  await page.getByText("Session B first message", { exact: true }).first().waitFor();
+  await page
+    .getByText("Session B first message", { exact: true })
+    .first()
+    .click();
+  await page
+    .getByText("Session B first message", { exact: true })
+    .first()
+    .waitFor();
   const allTabs = tablist.getByRole("tab");
-  assert.equal(await allTabs.count(), 2, "Re-clicking must not create a third tab");
+  assert.equal(
+    await allTabs.count(),
+    2,
+    "Re-clicking must not create a third tab",
+  );
   console.log("PASS: sidebar re-click activates existing tab");
 
   // Close tab B via its close button
@@ -177,7 +219,10 @@ try {
 
   // Refresh and verify tab list restores
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByText("Session A first message", { exact: true }).first().waitFor();
+  await page
+    .getByText("Session A first message", { exact: true })
+    .first()
+    .waitFor();
   const restoredTabA = page
     .getByRole("tablist", { name: "Session tabs" })
     .getByRole("tab", { name: /Session A first message/i });
@@ -189,13 +234,18 @@ try {
     while (Date.now() < deadline) {
       const sel = await restoredTabA.getAttribute("aria-selected");
       const url = new URL(page.url());
-      if (sel === "true" && url.searchParams.get("session") === SESSION_A) break;
+      if (sel === "true" && url.searchParams.get("session") === SESSION_A)
+        break;
       await delay(250);
     }
   }
   assert.equal(await restoredTabA.getAttribute("aria-selected"), "true");
   // The closed session must not resurrect: exactly one tab survives reload.
-  assert.equal(await allTabs.count(), 1, "Closed session tab must not resurrect on reload");
+  assert.equal(
+    await allTabs.count(),
+    1,
+    "Closed session tab must not resurrect on reload",
+  );
   console.log("PASS: refresh restores tab list and active state");
 
   // Verify URL mirrors active tab
@@ -205,16 +255,23 @@ try {
 
   // ── Scroll restoration across tab switch ────────────────────────────────
   // Open session B in a second tab
-  await page.getByText("Session B first message", { exact: true }).first().click();
-  await page.getByText("Session B first message", { exact: true }).first().waitFor();
+  await page
+    .getByText("Session B first message", { exact: true })
+    .first()
+    .click();
+  await page
+    .getByText("Session B first message", { exact: true })
+    .first()
+    .waitFor();
 
   // Switch back to session A and scroll to a specific position.
   // Chat auto-scrolls to the live tail on mount, so wait for any A-owned
   // message text (the tail fillers are reliably rendered) before scrolling.
+  await page.getByRole("tab", { name: /Session A first message/i }).click();
   await page
-    .getByRole("tab", { name: /Session A first message/i })
-    .click();
-  await page.getByText("Session A filler paragraph 19", { exact: false }).first().waitFor();
+    .getByText("Session A filler paragraph 19", { exact: false })
+    .first()
+    .waitFor();
 
   const scrollContainer = page.locator(".overflow-y-auto").first();
   await scrollContainer.evaluate((el) => {
@@ -225,16 +282,18 @@ try {
   assert.ok(scrollTopBefore > 0, "Must have scrolled down");
 
   // Switch to session B
+  await page.getByRole("tab", { name: /Session B first message/i }).click();
   await page
-    .getByRole("tab", { name: /Session B first message/i })
-    .click();
-  await page.getByText("Session B first message", { exact: true }).first().waitFor();
+    .getByText("Session B first message", { exact: true })
+    .first()
+    .waitFor();
 
   // Switch back to session A — scroll must restore
+  await page.getByRole("tab", { name: /Session A first message/i }).click();
   await page
-    .getByRole("tab", { name: /Session A first message/i })
-    .click();
-  await page.getByText("Session A filler paragraph 19", { exact: false }).first().waitFor();
+    .getByText("Session A filler paragraph 19", { exact: false })
+    .first()
+    .waitFor();
   const scrollTopAfter = await scrollContainer.evaluate((el) => el.scrollTop);
   assert.ok(
     Math.abs(scrollTopAfter - scrollTopBefore) < 50,
