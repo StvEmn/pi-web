@@ -532,6 +532,11 @@ export function SessionSidebar({
   // back to the default policy (only the most recent group expanded).
   const [expandedGroupKeys, setExpandedGroupKeys] =
     useState<Set<string> | null>(() => loadExpandedGroupKeys());
+  // Subagent row expansion, per family root. Ephemeral: subagents are a
+  // drill-down view, collapsed again on reload.
+  const [expandedFamilies, setExpandedFamilies] = useState<Set<string>>(
+    () => new Set(),
+  );
   // Worktree switcher state
   const [worktreeState, setWorktreeState] = useState<WorktreeState | null>(
     null,
@@ -1297,7 +1302,8 @@ export function SessionSidebar({
           group: (typeof projectGroups)[number];
           groupIndex: number;
         }
-      | { kind: "session"; family: SessionFamily };
+      | { kind: "session"; family: SessionFamily }
+      | { kind: "subagent"; session: SessionInfo };
     const rows: Row[] = [];
     const tops: number[] = [];
     const heights: number[] = [];
@@ -1313,11 +1319,19 @@ export function SessionSidebar({
           tops.push(offset);
           heights.push(SESSION_LIST_ITEM_HEIGHT);
           offset += SESSION_LIST_ITEM_HEIGHT;
+          if (expandedFamilies.has(family.root.id)) {
+            for (const sub of family.subagents) {
+              rows.push({ kind: "subagent", session: sub });
+              tops.push(offset);
+              heights.push(SESSION_LIST_ITEM_HEIGHT);
+              offset += SESSION_LIST_ITEM_HEIGHT;
+            }
+          }
         }
       }
     });
     return { rows, tops, heights, totalHeight: offset };
-  }, [projectGroups, isGroupExpanded]);
+  }, [projectGroups, isGroupExpanded, expandedFamilies]);
 
   const virtualIndices = getSessionTreeIndices(
     treeRows.tops,
@@ -2204,6 +2218,35 @@ export function SessionSidebar({
                     </div>
                   );
                 }
+                // Subagent child row — selecting one navigates inside the
+                // family's tab (never creates a tab; see AppShell).
+                if (row.kind === "subagent") {
+                  return (
+                    <div
+                      key={row.session.id}
+                      style={{
+                        position: "absolute",
+                        top: treeRows.tops[index],
+                        left: 0,
+                        right: 0,
+                      }}
+                    >
+                      <SessionItem
+                        session={row.session}
+                        depth={1}
+                        isSelected={row.session.id === selectedSessionId}
+                        isRunning={runningSessionIds.has(row.session.id)}
+                        isUnread={unreadSessionIds.has(row.session.id)}
+                        onClick={() => handleSelectSessionFromList(row.session)}
+                        onRenamed={loadSessions}
+                        onDeleted={(id) => {
+                          onSessionDeleted?.(id);
+                          loadSessions();
+                        }}
+                      />
+                    </div>
+                  );
+                }
                 const family = row.family;
                 const familySessions = [family.root, ...family.subagents];
                 const displaySession =
@@ -2235,6 +2278,17 @@ export function SessionSidebar({
                         unreadSessionIds.has(session.id),
                       )}
                       onClick={() => handleSelectSessionFromList(family.root)}
+                      hasChildren={family.subagents.length > 0}
+                      collapsed={!expandedFamilies.has(family.root.id)}
+                      onToggleCollapse={() =>
+                        setExpandedFamilies((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(family.root.id))
+                            next.delete(family.root.id);
+                          else next.add(family.root.id);
+                          return next;
+                        })
+                      }
                       onRenamed={loadSessions}
                       onDeleted={(id) => {
                         onSessionDeleted?.(id);

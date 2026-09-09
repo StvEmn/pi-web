@@ -5,7 +5,10 @@ import test from "node:test";
 import vm from "node:vm";
 import { createJiti } from "jiti";
 
-const source = await readFile(new URL("./AppShell.tsx", import.meta.url), "utf8");
+const source = await readFile(
+  new URL("./AppShell.tsx", import.meta.url),
+  "utf8",
+);
 const jiti = createJiti(import.meta.url);
 const draftStore = await jiti.import("../lib/draft-store.ts");
 const sessionTabsModule = await jiti.import("../lib/session-tabs.ts");
@@ -30,7 +33,10 @@ test("explicit context changes invalidate a pending workspace restore", () => {
   ];
 
   for (const [name, nextName] of callbacks) {
-    assert.match(callbackBody(name, nextName), /invalidateWorkspaceRestore\(\);/);
+    assert.match(
+      callbackBody(name, nextName),
+      /invalidateWorkspaceRestore\(\);/,
+    );
   }
 });
 
@@ -43,9 +49,18 @@ test("all active-session transitions share one persistence effect", () => {
 
 test("keeps chat scroll positions in page memory by session id", () => {
   assert.match(source, /useRef\(new Map<string, ChatScrollPosition>\(\)\)/);
-  assert.match(source, /sessionScrollPositionsRef\.current\.set\(sessionId, position\)/);
-  assert.match(source, /initialScrollPosition=\{selectedSession \? sessionScrollPositionsRef\.current\.get\(selectedSession\.id\) \?\? null : null\}/);
-  assert.match(source, /onScrollPositionChange=\{handleSessionScrollPositionChange\}/);
+  assert.match(
+    source,
+    /sessionScrollPositionsRef\.current\.set\(sessionId, position\)/,
+  );
+  assert.match(
+    source,
+    /initialScrollPosition=\{selectedSession \? sessionScrollPositionsRef\.current\.get\(selectedSession\.id\) \?\? null : null\}/,
+  );
+  assert.match(
+    source,
+    /onScrollPositionChange=\{handleSessionScrollPositionChange\}/,
+  );
   assert.doesNotMatch(source, /localStorage[^\n]*sessionScroll/i);
 });
 
@@ -64,10 +79,22 @@ test("New restores the draft after session navigation and workspace auto-restore
     callbackBody("handleSelectSession", "handleNewSession"),
     callbackBody("handleNewSession", "hydrateSelectedSession"),
   ].join("\n");
-  const parkedKeyHelper = source.slice(source.indexOf("function parkedNewSessionDraftKey"), source.indexOf("export function AppShell"));
-  const hookSource = await readFile(new URL("../hooks/useAgentSession.ts", import.meta.url), "utf8");
-  const cleanupStart = hookSource.indexOf("    return () => {", hookSource.indexOf("  // Load session on mount"));
-  const cleanupEnd = hookSource.indexOf("    // eslint-disable-next-line", cleanupStart);
+  const parkedKeyHelper = source.slice(
+    source.indexOf("function parkedNewSessionDraftKey"),
+    source.indexOf("export function AppShell"),
+  );
+  const hookSource = await readFile(
+    new URL("../hooks/useAgentSession.ts", import.meta.url),
+    "utf8",
+  );
+  const cleanupStart = hookSource.indexOf(
+    "    return () => {",
+    hookSource.indexOf("  // Load session on mount"),
+  );
+  const cleanupEnd = hookSource.indexOf(
+    "    // eslint-disable-next-line",
+    cleanupStart,
+  );
 
   for (const rememberedCwd of ["/draft-project", "/draft-project-worktree"]) {
     await t.test(`remembered session cwd: ${rememberedCwd}`, async () => {
@@ -87,10 +114,26 @@ test("New restores the draft after session navigation and workspace auto-restore
         window: { location: { pathname: "/", search: "" } },
         router: { replace() {} },
         fetch: () => response.promise,
-        getLastOpenSession: (key) => key === cwd ? session.id : null,
+        getLastOpenSession: (key) => (key === cwd ? session.id : null),
         clearLastOpen() {},
         workspaceKeyOf: (value) => value.projectKey ?? value.cwd,
         useCallback: (callback) => callback,
+        useRef: (initial) => ({ current: initial }),
+        // Hook-level state used by the sliced drain effect; stored on the
+        // sandbox so reads inside evaluated callbacks observe the writes.
+        useState: (initial) => {
+          const stateIdx = (context.__stateSeq =
+            (context.__stateSeq ?? -1) + 1);
+          const key = `__state${stateIdx}`;
+          if (!(key in context)) context[key] = initial;
+          return [
+            context[key],
+            (value) => {
+              context[key] =
+                typeof value === "function" ? value(context[key]) : value;
+            },
+          ];
+        },
         useEffect() {},
         useGlobalKeyboardShortcuts() {},
         activeNewSessionDraftKeyRef: { current: `new:initial:${cwd}` },
@@ -111,40 +154,61 @@ test("New restores the draft after session navigation and workspace auto-restore
         sessionKey: 0,
         tabState: { tabs: [], activeId: null },
         sessionCatalog: [],
+        sessionsWithSelection: [],
+        getSessionFamily: () => null,
+        activeSessionFamily: null,
       });
-      context.invalidateWorkspaceRestore = () => context.workspaceRestoreTokenRef.current++;
+      context.invalidateWorkspaceRestore = () =>
+        context.workspaceRestoreTokenRef.current++;
       context.setTabState = (value) => {
-        context.tabState = typeof value === "function" ? value(context.tabState) : value;
+        context.tabState =
+          typeof value === "function" ? value(context.tabState) : value;
       };
       Object.defineProperty(context, "sessionTabs", {
-        get() { return context.tabState.tabs; },
+        get() {
+          return context.tabState.tabs;
+        },
         configurable: true,
       });
       Object.defineProperty(context, "activeTabId", {
-        get() { return context.tabState.activeId; },
+        get() {
+          return context.tabState.activeId;
+        },
         configurable: true,
       });
       for (const [setter] of callbacks.matchAll(/\bset[A-Z]\w*(?=\()/g)) {
         const state = setter[3].toLowerCase() + setter.slice(4);
         context[setter] = (value) => {
-          context[state] = typeof value === "function" ? value(context[state]) : value;
+          context[state] =
+            typeof value === "function" ? value(context[state]) : value;
         };
       }
-      vm.runInContext(stripTypeScriptTypes(`${parkedKeyHelper}\n${callbacks}
+      vm.runInContext(
+        stripTypeScriptTypes(`${parkedKeyHelper}\n${callbacks}
         globalThis.navigate = { handleCwdChange, handleSelectSession, handleNewSession, handleEnterDraftTab };
-      `), context);
+      `),
+        context,
+      );
       // Run the actual hook cleanup with the outgoing mount's captured draft key.
-      const makeCleanup = vm.runInContext(stripTypeScriptTypes(`((isNew, newSessionDraftKey) => {
+      const makeCleanup = vm.runInContext(
+        stripTypeScriptTypes(`((isNew, newSessionDraftKey) => {
         const sessionHookMountedRef = { current: true };
         const newSessionPromotedRef = { current: false };
         ${hookSource.slice(cleanupStart, cleanupEnd)}
-      })`), context);
+      })`),
+        context,
+      );
       let mountedKey = context.sessionKey;
-      let cleanup = makeCleanup(true, context.activeNewSessionDraftKeyRef.current);
+      let cleanup = makeCleanup(
+        true,
+        context.activeNewSessionDraftKeyRef.current,
+      );
       async function commit() {
         // Emulate the active-tab → view mapping effect: entering the active
         // draft tab (guard and idempotency live inside the callback).
-        const activeTab = context.tabState.tabs.find((t) => t.id === context.tabState.activeId);
+        const activeTab = context.tabState.tabs.find(
+          (t) => t.id === context.tabState.activeId,
+        );
         if (activeTab?.draftCwd !== undefined) {
           context.navigate.handleEnterDraftTab(activeTab);
         }
@@ -152,34 +216,55 @@ test("New restores the draft after session navigation and workspace auto-restore
           cleanup();
           mountedKey = context.sessionKey;
           const activeCwd = context.newSessionCwd ?? context.activeCwd;
-          const key = context.selectedSession ? null : `new:${context.newSessionDraftId}:${activeCwd}`;
+          const key = context.selectedSession
+            ? null
+            : `new:${context.newSessionDraftId}:${activeCwd}`;
           context.activeNewSessionDraftKeyRef.current = key;
           cleanup = makeCleanup(!context.selectedSession, key);
         }
         await new Promise((resolve) => setImmediate(resolve));
       }
 
-      const draft = { value: "unsent project draft", images: [{ data: "aGVsbG8=", mimeType: "image/png" }] };
+      const draft = {
+        value: "unsent project draft",
+        images: [{ data: "aGVsbG8=", mimeType: "image/png" }],
+      };
       draftStore.setDraft(context.activeNewSessionDraftKeyRef.current, draft);
       context.navigate.handleSelectSession({ ...session, cwd });
       await commit();
       context.navigate.handleNewSession("direct-return", cwd);
       await commit();
-      assert.deepEqual(draftStore.getDraft(context.activeNewSessionDraftKeyRef.current), draft);
+      assert.deepEqual(
+        draftStore.getDraft(context.activeNewSessionDraftKeyRef.current),
+        draft,
+      );
       context.navigate.handleSelectSession({ ...session, cwd });
       await commit();
-      context.navigate.handleCwdChange("/other-project", "/other-project", "/other-project");
+      context.navigate.handleCwdChange(
+        "/other-project",
+        "/other-project",
+        "/other-project",
+      );
       await commit();
       context.navigate.handleCwdChange(cwd, cwd, cwd);
       await commit();
-      assert.deepEqual(draftStore.getDraft(context.activeNewSessionDraftKeyRef.current), draft);
-      response.resolve({ ok: true, json: async () => ({ sessions: [session] }) });
+      assert.deepEqual(
+        draftStore.getDraft(context.activeNewSessionDraftKeyRef.current),
+        draft,
+      );
+      response.resolve({
+        ok: true,
+        json: async () => ({ sessions: [session] }),
+      });
       await new Promise((resolve) => setImmediate(resolve));
       await commit();
       assert.equal(context.selectedSession.id, session.id);
       context.navigate.handleNewSession("after-auto-restore", cwd);
       await commit();
-      assert.deepEqual(draftStore.getDraft(context.activeNewSessionDraftKeyRef.current), draft);
+      assert.deepEqual(
+        draftStore.getDraft(context.activeNewSessionDraftKeyRef.current),
+        draft,
+      );
       draftStore.clearDraft(context.activeNewSessionDraftKeyRef.current);
     });
   }
