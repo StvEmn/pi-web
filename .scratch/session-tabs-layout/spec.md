@@ -1,6 +1,6 @@
 # Spec: 会话标签栏布局回归中列 + 标签限宽
 
-**Status:** in-progress
+**Status:** done
 **Created:** 2026-06-14
 **Amends:** ADR-0004（布局子决策）、ticket `.scratch/session-tabs/issues/04-tab-bar-interactions.md`（溢出收缩条目）
 
