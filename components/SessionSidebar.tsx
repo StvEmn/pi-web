@@ -568,13 +568,13 @@ export function SessionSidebar({
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
   // Group sort mode: recent (default) or name-ascending.
   const [sortMode, setSortMode] = useState<"recent" | "name">((() => {
-    if (typeof window === "undefined") return "recent";
-    try { return window.localStorage.getItem("pi-web:sidebar-sort-v1") === "name" ? "name" : "recent"; } catch { return "recent"; }
+    if (typeof window === "undefined") return "name";
+    try { return window.localStorage.getItem("pi-web:sidebar-sort-v1") === "recent" ? "recent" : "name"; } catch { return "name"; }
   })());
   const toggleSortMode = useCallback(() => {
     setSortMode((prev) => {
       const next = prev === "recent" ? "name" : "recent";
-      try { window.localStorage.setItem("pi-web:sidebar-sort-v1", next); } catch {}
+      try { window.localStorage.setItem("pi-web:sidebar-sort-v1", next); } catch { /* SSR or quota */ }
       return next;
     });
   }, []);
