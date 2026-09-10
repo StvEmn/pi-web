@@ -198,7 +198,6 @@ export const zhCNLocale: LocalePlugin = {
     "sidebar.newSessionTitle": "在 {path} 中新建会话",
     "sidebar.refresh": "刷新",
     "sidebar.selectProject": "选择项目…",
-    "sidebar.useDefaultDirectory": "使用默认目录",
     "sidebar.customPath": "打开目录…",
     "sidebar.removeProject": "移除项目",
     "sidebar.removeProjectTip": "仅从侧栏移除，会话文件保留在磁盘",

@@ -244,9 +244,8 @@ test("group header + opens a draft tab in that project's cwd", () => {
   assert.match(source, /onNewSession\?\.\(createTempSessionId\(\), cwd\)/);
 });
 
-test("custom path and default directory entries survive the dropdown removal", () => {
+test("open directory entry survives the dropdown removal", () => {
   assert.match(source, /onClick=\{handleCustomPathClick\}/);
-  assert.match(source, /onClick=\{handleDefaultCwd\}/);
   assert.match(source, /initialPath=\{customPathValue\}/);
 });
 

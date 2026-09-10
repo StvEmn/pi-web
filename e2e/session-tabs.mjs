@@ -359,7 +359,7 @@ try {
   assert.equal(await tabA.getAttribute("aria-selected"), "true");
   console.log("PASS: arrow keys / Home / End move tab selection");
 
-  // ── Layout: tab bar lives at the top of the center column (layout spec) ──
+  // ── Layout: tab bar lives below the tool top bar (second row) in the center column (layout spec) ──
   {
     const tablistBox = await tablist.boundingBox();
     const sidebarBox = await page.locator("#session-sidebar").boundingBox();
@@ -371,8 +371,8 @@ try {
     const topBar = await toggle.boundingBox();
     assert.ok(topBar, "sidebar toggle must exist in the tool top bar");
     assert.ok(
-      topBar.y > tablistBox.y + tablistBox.height - 1,
-      "tool top bar (with sidebar toggle) must sit below the tab bar",
+      topBar.y + topBar.height <= tablistBox.y + 1,
+      `tool top bar (with sidebar toggle) must sit above the tab bar (topBar bottom=${topBar.y + topBar.height}, tab top=${tablistBox.y})`,
     );
     assert.ok(
       Math.abs(topBar.x - tablistBox.x) < 1,

@@ -1088,30 +1088,6 @@ export function SessionSidebar({
     setCustomPathOpen(true);
     setCustomPathError(null);
   }, []);
-  const handleDefaultCwd = useCallback(async () => {
-    try {
-      const res = await fetch("/api/default-cwd", { method: "POST" });
-      const data = (await res.json()) as { cwd?: string; error?: string };
-      if (data.cwd) {
-        setSelectedCwd(data.cwd);
-        setCustomPathOpen(false);
-        setCustomPathError(null);
-        // Unhide the project for this cwd if it was removed
-        setRemovedProjectKeys((prev) => {
-          if (!prev || prev.size === 0) return prev;
-          const match = allSessions.find(
-            (s) => s.cwd === data.cwd || (s.projectRoot ?? s.cwd) === data.cwd,
-          );
-          if (!match) return prev;
-          const key = workspaceKeyOf(match);
-          return unhideProject(prev, key);
-        });
-      }
-    } catch {
-      // ignore
-    }
-  }, [allSessions]);
-
   const handleCreateWorktree = useCallback(async () => {
     const branch = wtNewBranch.trim();
     if (!branch || wtBusy || !worktreeState) return;
@@ -2389,26 +2365,6 @@ export function SessionSidebar({
         }}
       >
         <button
-          onClick={handleDefaultCwd}
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 5,
-            height: 28,
-            padding: 0,
-            margin: 0,
-            background: "none",
-            border: "none",
-            color: "var(--text-dim)",
-            cursor: "pointer",
-            fontSize: 11,
-          }}
-        >
-          {t("sidebar.useDefaultDirectory")}
-        </button>
-        <button
           onClick={handleCustomPathClick}
           style={{
             flex: 1,
@@ -2420,7 +2376,6 @@ export function SessionSidebar({
             padding: 0,
             background: "none",
             border: "none",
-            borderLeft: "1px solid var(--border)",
             color: "var(--text-dim)",
             cursor: "pointer",
             fontSize: 11,

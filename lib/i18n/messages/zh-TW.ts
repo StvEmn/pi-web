@@ -198,7 +198,6 @@ export const zhTWLocale: LocalePlugin = {
     "sidebar.newSessionTitle": "在 {path} 中新增工作階段",
     "sidebar.refresh": "重新整理",
     "sidebar.selectProject": "選擇專案…",
-    "sidebar.useDefaultDirectory": "使用預設目錄",
     "sidebar.customPath": "開啟目錄…",
     "sidebar.removeProject": "移除專案",
     "sidebar.removeProjectTip": "僅從側欄移除，工作階段檔案保留在磁碟",

@@ -3206,18 +3206,6 @@ export function AppShell() {
               minWidth: 0,
             }}
           >
-            {/* Session tabs — top of the center column (amends ADR-0004) */}
-            <SessionTabBar
-              tabs={sessionTabs}
-              activeId={activeTabId}
-              onActivate={handleTabActivate}
-              onClose={handleTabClose}
-              onCloseOthers={handleTabCloseOthers}
-              onCloseRight={handleTabCloseRight}
-              runningSessionIds={runningSessionIds}
-              sessionNames={sessionNameMap}
-              sessionCwds={sessionCwdMap}
-            />
             {/* Top bar */}
             <div
               ref={topBarRef}
@@ -4083,6 +4071,19 @@ export function AppShell() {
               </div>
               {isMobile && renderProjectTrustWarning(true)}
             </div>
+
+            {/* Session tabs — second row of the center column, below the tool top bar */}
+            <SessionTabBar
+              tabs={sessionTabs}
+              activeId={activeTabId}
+              onActivate={handleTabActivate}
+              onClose={handleTabClose}
+              onCloseOthers={handleTabCloseOthers}
+              onCloseRight={handleTabCloseRight}
+              runningSessionIds={runningSessionIds}
+              sessionNames={sessionNameMap}
+              sessionCwds={sessionCwdMap}
+            />
 
             {/* Chat content */}
             <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>

@@ -203,7 +203,6 @@ export const enLocale: LocalePlugin = {
     "sidebar.newSessionTitle": "New session in {path}",
     "sidebar.refresh": "Refresh",
     "sidebar.selectProject": "Select project…",
-    "sidebar.useDefaultDirectory": "Use default directory",
     "sidebar.customPath": "Open directory…",
     "sidebar.removeProject": "Remove project",
     "sidebar.removeProjectTip": "Hide from sidebar only — sessions stay on disk",

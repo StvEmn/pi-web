@@ -10,13 +10,13 @@ The frontend previously rendered exactly one ChatWindow driven by a sidebar proj
 - **Sidebar role**: keep project dropdown (rejected: cross-project opening stays two-step), all-projects grouped tree (chosen).
 - **Subagent sessions**: opening a tab per subagent was considered and rejected — clicking a subagent navigates within the current tab (same as today), so a tab is not permanently bound to one session id; only fork opens a new tab.
 
-## Amended: tab bar moves to the top of the center column
+## Amended: tab bar moves to the center column, below the tool top bar
 
 **Date:** 2026-06-14
 
 The tab bar originally shipped as a full-width row across the top of the
-window, above the sidebar. It now renders as the first row of the **center
-column** (sidebar right edge → right panel), above the 36px tool top bar.
+window, above the sidebar. It now renders as the **second row of the center
+column** (sidebar right edge → right panel), below the 36px tool top bar.
 
 - The sidebar stays visually full-height; the tab bar belongs to the chat
   area it switches, matching the VS Code / Windows Terminal mental model.
