@@ -185,6 +185,28 @@ export function closeRight(state: TabState): TabState {
   return { tabs: state.tabs.slice(0, idx + 1), activeId: state.activeId };
 }
 
+/**
+ * Remove tabs whose session no longer exists (e.g. deleted while the app
+ * was closed). Draft tabs are always kept. Each removal goes through
+ * closeTab, so a stale active tab hands activation to its left-preferring
+ * neighbor. Returns the input state object when nothing is stale.
+ */
+export function pruneStaleTabs(
+  state: TabState,
+  knownSessionIds: ReadonlySet<string>,
+): TabState {
+  let next = state;
+  for (const tab of state.tabs) {
+    if (
+      tab.draftCwd === undefined &&
+      !knownSessionIds.has(tab.sessionId ?? "")
+    ) {
+      next = closeTab(next, tab.id);
+    }
+  }
+  return next;
+}
+
 // ── Tab display titles ───────────────────────────────────────────────────────
 
 export interface TabTitleContext {

@@ -25,6 +25,7 @@ import {
   activateTab as activateSessionTab,
   closeOthers as closeOtherSessionTabs,
   closeRight as closeRightSessionTabs,
+  pruneStaleTabs,
   initTabs as initSessionTabs,
   buildUrlSearch,
 } from "@/lib/session-tabs";
@@ -884,6 +885,21 @@ export function AppShell() {
     saveTabs(tabState);
   }, [tabState]);
 
+  // Prune tabs whose session was deleted while the app was closed: persisted
+  // tabs are restored verbatim, so a dead session id would leave a dangling
+  // tab. Runs once after the catalog first loads (an empty catalog means
+  // "not loaded yet" and must not wipe tabs); runtime deletions go through
+  // handleSessionDeleted instead.
+  const staleTabsPrunedRef = useRef(false);
+  useEffect(() => {
+    if (staleTabsPrunedRef.current) return;
+    if (!tabsInitializedRef.current) return;
+    if (sessionCatalog.length === 0) return;
+    staleTabsPrunedRef.current = true;
+    const known = new Set(sessionCatalog.map((s) => s.id));
+    setTabState((current) => pruneStaleTabs(current, known));
+  }, [sessionCatalog]);
+
   // Sync URL with active tab. Wait until tabs are initialized (loaded from
   // storage or first-boot init) before touching the URL — the pre-init empty
   // state must not clear a restore URL like /?session=<id>.
@@ -1231,10 +1247,7 @@ export function AppShell() {
   );
 
   const handleTabActivate = useCallback((tabId: string) => {
-    setTabState((current) => {
-      const next = activateSessionTab(current, tabId);
-      return next;
-    });
+    setTabState((current) => activateSessionTab(current, tabId));
   }, []);
 
   const handleTabClose = useCallback(
@@ -1459,29 +1472,26 @@ export function AppShell() {
   const handleSessionCreated = useCallback(
     (session: SessionInfo, sourceDraftKey: string) => {
       setRefreshKey((k) => k + 1);
+      // Promote the draft tab unconditionally: the tab transition is
+      // view-independent (same position, same tab id; lib promoteDraft keeps
+      // the active tab when the draft is no longer the active view). Skipping
+      // it because the user switched tabs mid-send would strand the draft tab
+      // in draft state forever. Falls back to opening a fresh tab if the
+      // draft tab is already gone (closed between send and callback).
+      setTabState((current) =>
+        promoteDraft(current, newSessionDraftId, session.id),
+      );
+      // Only the view switch is conditional on the draft still being active;
+      // the ?session= URL mirror is owned by the sync effect.
       if (activeNewSessionDraftKeyRef.current !== sourceDraftKey) return;
       invalidateWorkspaceRestore();
       activeNewSessionDraftKeyRef.current = null;
       setNewSessionCwd(null);
       setSelectedSession(session);
       setSessionKey((k) => k + 1);
-      // Promote the draft tab in place: same position, same tab id, real
-      // sessionId/title/URL mirror updates. Falls back to opening a fresh tab
-      // if the draft tab is already gone (closed between send and callback).
-      setTabState((current) =>
-        promoteDraft(current, newSessionDraftId, session.id),
-      );
       hydrateSelectedSession(session.id);
-      router.replace(`?session=${encodeURIComponent(session.id)}`, {
-        scroll: false,
-      });
     },
-    [
-      invalidateWorkspaceRestore,
-      router,
-      hydrateSelectedSession,
-      newSessionDraftId,
-    ],
+    [invalidateWorkspaceRestore, hydrateSelectedSession, newSessionDraftId],
   );
 
   const deliverSessionNotification = useCallback(
@@ -1654,14 +1664,11 @@ export function AppShell() {
         id: newSessionId,
         transient: false,
       }));
-      // Open a tab for the forked session
+      // Open a tab for the forked session; the URL sync effect mirrors ?session=.
       setTabState((current) => openSessionTab(current, newSessionId));
       hydrateSelectedSession(newSessionId);
-      router.replace(`?session=${encodeURIComponent(newSessionId)}`, {
-        scroll: false,
-      });
     },
-    [invalidateWorkspaceRestore, router, hydrateSelectedSession],
+    [invalidateWorkspaceRestore, hydrateSelectedSession],
   );
 
   const handleAskInNewChat = useCallback(

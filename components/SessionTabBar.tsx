@@ -269,6 +269,7 @@ export function SessionTabBar({
                 type="button"
                 aria-label={translate("sessionTabs.closeTabNamed", { title: displayTitle })}
                 title={translate("sessionTabs.closeTabNamed", { title: displayTitle })}
+                tabIndex={-1}
                 onClick={(e) => {
                   e.stopPropagation();
                   onClose(tab.id);
