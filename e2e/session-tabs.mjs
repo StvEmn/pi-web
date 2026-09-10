@@ -32,6 +32,7 @@ mkdirSync(sessionDirB, { recursive: true });
 const SESSION_A = "tabs-e2e-session-a";
 const SESSION_B = "tabs-e2e-session-b";
 const SESSION_C = "tabs-e2e-session-c";
+const SESSION_D = "tabs-e2e-session-d";
 
 // Fixture: 2 sessions in different projects
 const sessionAEntries = [
@@ -72,6 +73,16 @@ writeSession(
     message("c0", null, "user", "Session C first message"),
     message("c1", "c0", "assistant", "Session C assistant reply"),
   ],
+  projectB,
+);
+
+// Long-title session for the tab width-cap assertion (layout spec).
+const LONG_TITLE =
+  "Session D with an extremely long first message title that deliberately exceeds the 220px tab width ceiling";
+writeSession(
+  sessionDirB,
+  SESSION_D,
+  [message("d0", null, "user", LONG_TITLE)],
   projectB,
 );
 
@@ -140,7 +151,7 @@ try {
     if (response?.ok) {
       const { sessions } = await response.json();
       const ids = sessions.map((s) => s.id).sort();
-      assert.deepEqual(ids, [SESSION_A, SESSION_B, SESSION_C].sort());
+      assert.deepEqual(ids, [SESSION_A, SESSION_B, SESSION_C, SESSION_D].sort());
       break;
     }
     assert.ok(Date.now() < deadline, "Server readiness timed out");
@@ -356,14 +367,28 @@ try {
       tablistBox.x >= sidebarBox.x + sidebarBox.width - 1,
       `tab bar must start at/beyond the sidebar's right edge (tab x=${tablistBox.x}, sidebar right=${sidebarBox.x + sidebarBox.width})`,
     );
-    const topBar = await page
-      .getByRole("button", { name: "Hide sidebar", exact: true })
-      .boundingBox();
+    const toggle = page.getByRole("button", { name: "Hide sidebar", exact: true });
+    const topBar = await toggle.boundingBox();
     assert.ok(topBar, "sidebar toggle must exist in the tool top bar");
     assert.ok(
       topBar.y > tablistBox.y + tablistBox.height - 1,
       "tool top bar (with sidebar toggle) must sit below the tab bar",
     );
+    assert.ok(
+      Math.abs(topBar.x - tablistBox.x) < 1,
+      `sidebar toggle must sit at the left end of the center column (toggle x=${topBar.x}, tablist x=${tablistBox.x})`,
+    );
+    // Collapse the sidebar: the tab bar must reach the window's left edge.
+    await toggle.click();
+    await page.waitForTimeout(300); // sidebar collapse transition
+    const collapsedBox = await tablist.boundingBox();
+    assert.ok(
+      collapsedBox.x <= 1,
+      `tab bar must touch the window's left edge when the sidebar is collapsed (x=${collapsedBox.x})`,
+    );
+    // Restore for the later sidebar-click scenarios.
+    await page.getByRole("button", { name: "Show sidebar", exact: true }).click();
+    await page.locator("#session-sidebar").waitFor();
   }
   console.log("PASS: tab bar sits at the top of the center column");
 
@@ -392,14 +417,6 @@ try {
   await tabC.waitFor();
   assert.equal(await tabC.getAttribute("aria-selected"), "true");
   {
-    // maxWidth 220 cap: a long title must not stretch the tab beyond it.
-    const box = await tabC.boundingBox();
-    assert.ok(
-      box.width <= 220,
-      `tab must respect the 220px width cap (got ${box.width})`,
-    );
-  }
-  {
     const titleA = await tabA.getAttribute("title");
     assert.ok(
       titleA.startsWith("project-a · "),
@@ -413,6 +430,33 @@ try {
     );
   }
   console.log("PASS: cross-project tabs show a project name prefix");
+
+  // ── Tab width cap at 220px with a long title (layout spec) ──────────
+  {
+    // Open the long-title session D (project-b group is already expanded).
+    // The sidebar truncates titles to 50 chars; the tab keeps the full title.
+    await page
+      .getByText(LONG_TITLE.slice(0, 50), { exact: true })
+      .first()
+      .click();
+    const tabD = page.getByRole("tab", { name: new RegExp(LONG_TITLE.slice(0, 30), "i") });
+    await tabD.waitFor();
+    const box = await tabD.boundingBox();
+    assert.ok(
+      Math.abs(box.width - 220) < 1,
+      `long-title tab must be exactly at the 220px cap (got ${box.width})`,
+    );
+    // Ellipsis: the title span's content is clipped (scroll > client).
+    const clipped = await tabD.locator("span").first().evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+    assert.ok(clipped, "long title must be clipped with ellipsis");
+    // Tooltip still carries the full title.
+    const titleAttr = await tabD.getAttribute("title");
+    assert.ok(titleAttr.includes(LONG_TITLE), "tooltip must keep the full title");
+    // Close D to restore the [A, B, C] state for the context-menu scenarios.
+    await tabD.getByRole("button", { name: /Close tab/i }).click();
+    await tabD.waitFor({ state: "detached" });
+  }
+  console.log("PASS: long title capped at 220px, ellipsized, full tooltip");
 
   // ── Context menu: close right (ticket 04) ─────────────────────────
   // Tabs are [A, B, C]; right-click the middle tab (B) → only its left side stays.
