@@ -59,3 +59,44 @@ export function sessionsForProject(
 ): SessionInfo[] {
   return sessions.filter((session) => workspaceKeyOf(session) === projectKey);
 }
+
+export function excludeRemovedProjects(
+  projects: readonly RecentProject[],
+  removedKeys: ReadonlySet<string>,
+): RecentProject[] {
+  if (removedKeys.size === 0) return [...projects];
+  return projects.filter((p) => !removedKeys.has(p.key));
+}
+
+// ── Removed-projects persistence (sidebar removal, pi-web:removed-projects-v1) ──
+
+const REMOVED_PROJECTS_KEY = "pi-web:removed-projects-v1";
+
+export function loadRemovedProjects(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(REMOVED_PROJECTS_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+export function saveRemovedProjects(keys: ReadonlySet<string>): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(REMOVED_PROJECTS_KEY, JSON.stringify([...keys]));
+  } catch {}
+}
+
+/** Remove a project key from the removed set and persist. Returns the updated set. */
+export function unhideProject(
+  current: ReadonlySet<string>,
+  key: string,
+): Set<string> {
+  if (!current.has(key)) return current as Set<string>;  // no-op, preserve reference
+  const next = new Set(current);
+  next.delete(key);
+  saveRemovedProjects(next);
+  return next;
+}

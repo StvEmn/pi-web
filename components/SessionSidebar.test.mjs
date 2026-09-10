@@ -218,7 +218,11 @@ test("renders an all-projects group tree instead of the project dropdown", () =>
   );
   assert.match(
     source,
-    /getRecentProjects\(allSessions\)\.map\(\(project\) => \(\{/,
+    /getRecentProjects\(allSessions\)/,
+  );
+  assert.match(
+    source,
+    /excludeRemovedProjects\(raw, removedProjectKeys/
   );
   assert.match(
     source,

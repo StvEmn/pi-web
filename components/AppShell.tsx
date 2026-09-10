@@ -77,6 +77,10 @@ import {
   workspaceKeyOf,
 } from "@/lib/workspace-memory";
 import {
+  loadRemovedProjects,
+  unhideProject,
+} from "@/lib/project-groups";
+import {
   getDefaultRightPanelWidth,
   getRightPanelMaxWidth,
   getSidebarMaxWidth,
@@ -1142,6 +1146,8 @@ export function AppShell() {
       activeNewSessionDraftKeyRef.current = null;
       // Adopt an explicitly selected session before the sidebar reports its cwd.
       const projectKey = workspaceKeyOf(session);
+      // Restore project if it was removed from sidebar
+      unhideProject(loadRemovedProjects(), projectKey);
       if (activeProjectKeyRef.current !== projectKey) {
         setFileTabs([]);
         if (!activeFileTabId || activeFileTabId.startsWith("file:")) {

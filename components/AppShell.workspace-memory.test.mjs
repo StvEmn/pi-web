@@ -157,6 +157,9 @@ test("New restores the draft after session navigation and workspace auto-restore
         sessionsWithSelection: [],
         getSessionFamily: () => null,
         activeSessionFamily: null,
+        loadRemovedProjects: () => new Set(),
+        saveRemovedProjects: () => {},
+        unhideProject: (current, key) => { if (!current.has(key)) return current; const next = new Set(current); next.delete(key); return next; },
       });
       context.invalidateWorkspaceRestore = () =>
         context.workspaceRestoreTokenRef.current++;

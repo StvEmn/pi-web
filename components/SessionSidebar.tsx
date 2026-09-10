@@ -16,10 +16,14 @@ import { loadExplorerOpen, saveExplorerOpen } from "@/lib/file-explorer-state";
 import { dispatchSessionRowContextMenu } from "@/lib/session-row-context-menu";
 import { skillExpansionToCommand } from "@/lib/slash-display";
 import {
+  excludeRemovedProjects,
   getProjectActivity,
   getRecentProjects,
+  loadRemovedProjects,
   projectDisplayName,
+  saveRemovedProjects,
   sessionsForProject,
+  unhideProject,
 } from "@/lib/project-groups";
 import { workspaceKeyOf } from "@/lib/workspace-memory";
 import { formatRelativeTime } from "@/lib/i18n/format";
@@ -687,6 +691,14 @@ export function SessionSidebar({
     setExpandedGroupKeys(loadExpandedGroupKeys());
   }, []);
 
+  // Removed-projects set: null on first render, hydrated after mount.
+  // Same SSR-safe pattern as expandedGroupKeys.
+  const [removedProjectKeys, setRemovedProjectKeys] =
+    useState<Set<string> | null>(null);
+  useEffect(() => {
+    setRemovedProjectKeys(loadRemovedProjects());
+  }, [selectedSessionId]);
+
   // Persist unread markers so they survive a browser refresh before the user
   // has actually opened the completed session.
   useEffect(() => {
@@ -1061,6 +1073,8 @@ export function SessionSidebar({
         setCustomPathValue(data.cwd);
         setSelectedCwd(data.cwd);
         setCustomPathOpen(false);
+        // Restore project if it was removed from sidebar
+        setRemovedProjectKeys((prev) => unhideProject(prev ?? new Set(), data.projectKey!));
       } catch (e) {
         setCustomPathError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -1082,11 +1096,21 @@ export function SessionSidebar({
         setSelectedCwd(data.cwd);
         setCustomPathOpen(false);
         setCustomPathError(null);
+        // Unhide the project for this cwd if it was removed
+        setRemovedProjectKeys((prev) => {
+          if (!prev || prev.size === 0) return prev;
+          const match = allSessions.find(
+            (s) => s.cwd === data.cwd || (s.projectRoot ?? s.cwd) === data.cwd,
+          );
+          if (!match) return prev;
+          const key = workspaceKeyOf(match);
+          return unhideProject(prev, key);
+        });
       }
     } catch {
       // ignore
     }
-  }, []);
+  }, [allSessions]);
 
   const handleCreateWorktree = useCallback(async () => {
     const branch = wtNewBranch.trim();
@@ -1232,15 +1256,18 @@ export function SessionSidebar({
   // come from getRecentProjects; each group keeps its own session families so
   // every existing session-row operation works unchanged inside the group.
   const projectGroups = useMemo(
-    () =>
-      getRecentProjects(allSessions).map((project) => ({
+    () => {
+      const raw = getRecentProjects(allSessions);
+      const kept = excludeRemovedProjects(raw, removedProjectKeys ?? new Set());
+      return kept.map((project) => ({
         ...project,
         families: listSessionFamilies(
           sessionsForProject(allSessions, project.key),
         ),
         activity: projectActivity.get(project.key),
-      })),
-    [allSessions, projectActivity],
+      }));
+    },
+    [allSessions, projectActivity, removedProjectKeys],
   );
 
   const isGroupExpanded = useCallback(
@@ -2185,6 +2212,46 @@ export function SessionSidebar({
                           {projectDisplayName(row.group.root)}
                         </span>
                         {showProjectActivity(row.group.activity, t)}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = new Set<string>(removedProjectKeys ?? new Set<string>());
+                          next.add(row.group.key);
+                          setRemovedProjectKeys(next);
+                          saveRemovedProjects(next);
+                        }}
+                        title={t("sidebar.removeProjectTip")}
+                        aria-label={t("sidebar.removeProject")}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 22,
+                          height: 22,
+                          padding: 0,
+                          flexShrink: 0,
+                          background: "none",
+                          border: "none",
+                          color: "var(--text-dim)",
+                          cursor: "pointer",
+                          borderRadius: 5,
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                      >
+                        <svg
+                          width="11"
+                          height="11"
+                          viewBox="0 0 12 12"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        >
+                          <line x1="2" y1="2" x2="10" y2="10" />
+                          <line x1="10" y1="2" x2="2" y2="10" />
+                        </svg>
                       </button>
                       <button
                         onClick={(e) => {

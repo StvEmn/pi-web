@@ -244,6 +244,61 @@ try {
   assert.equal(await tablist.getByRole("tab").count(), 3);
   console.log("PASS: draft tab coexists with session tabs");
 
+  // ── Remove project group via ✕ ──────────────────────────────────────
+  {
+    // Remove group B
+    const removeB = groupB
+      .locator("xpath=..")
+      .getByRole("button", { name: "Remove project" });
+    await removeB.click();
+    // Group B must disappear
+    await groupB.waitFor({ state: "detached", timeout: 5000 });
+    // Group A remains
+    await groupA.waitFor();
+  }
+  console.log("PASS: remove project hides the group");
+
+  // Refresh — removed group stays gone
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page
+    .getByText("Session A first message", { exact: true })
+    .first()
+    .waitFor();
+  await page
+    .getByRole("button", { name: "project-a", exact: true })
+    .waitFor();
+  const groupBAbsent = page.getByRole(
+    "button",
+    { name: "project-b", exact: true },
+  );
+  await groupBAbsent
+    .waitFor({ state: "detached", timeout: 5000 })
+    .catch(() => {});
+  assert.ok(
+    (await groupBAbsent.count()) === 0,
+    "project-b must stay removed after refresh",
+  );
+  console.log("PASS: removed project persists across refresh");
+
+  // ── URL navigation restores removed project (re-flow) ─────────────────
+  // project-b was removed above; navigate directly to its session via URL.
+  await page.goto(`${base}/?session=${SESSION_B}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  await page
+    .getByText("Session B first message", { exact: true })
+    .first()
+    .waitFor();
+  // The group must reappear in the sidebar
+  const groupBAfterUrl = page.getByRole("button", { name: "project-b", exact: true });
+  await groupBAfterUrl.waitFor({ timeout: 8000 });
+  console.log("PASS: URL navigation restores removed project group");
+
+  // ── Open directory button text ────────────────────────────────────────
+  const openDirBtn = page.getByRole("button", { name: "Open directory…", exact: true });
+  await openDirBtn.waitFor();
+  console.log("PASS: 'Open directory…' button text is correct");
+
   assert.deepEqual(errors, [], "No browser errors");
   console.log("\nAll sidebar group tree E2E tests passed!");
 
