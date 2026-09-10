@@ -201,6 +201,8 @@ export const zhTWLocale: LocalePlugin = {
     "sidebar.customPath": "開啟目錄…",
     "sidebar.removeProject": "移除專案",
     "sidebar.removeProjectTip": "僅從側欄移除，工作階段檔案保留在磁碟",
+    "sidebar.sortByName": "依名稱排序",
+    "sidebar.sortByRecent": "依最近活動排序",
     "directoryPicker.selectDirectory": "選擇目錄",
     "directoryPicker.goToParent": "前往上一層目錄",
     "directoryPicker.directoryPath": "目錄路徑",

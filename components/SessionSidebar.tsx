@@ -566,6 +566,18 @@ export function SessionSidebar({
   const [fileSearchOpen, setFileSearchOpen] = useState(false);
   const [sessionSearchOpen, setSessionSearchOpen] = useState(false);
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
+  // Group sort mode: recent (default) or name-ascending.
+  const [sortMode, setSortMode] = useState<"recent" | "name">((() => {
+    if (typeof window === "undefined") return "recent";
+    try { return window.localStorage.getItem("pi-web:sidebar-sort-v1") === "name" ? "name" : "recent"; } catch { return "recent"; }
+  })());
+  const toggleSortMode = useCallback(() => {
+    setSortMode((prev) => {
+      const next = prev === "recent" ? "name" : "recent";
+      try { window.localStorage.setItem("pi-web:sidebar-sort-v1", next); } catch {}
+      return next;
+    });
+  }, []);
   const sessionSearchActive =
     sessionSearchOpen && Boolean(sessionSearchQuery.trim());
   const [changesCount, setChangesCount] = useState(0);
@@ -1235,15 +1247,21 @@ export function SessionSidebar({
     () => {
       const raw = getRecentProjects(allSessions);
       const kept = excludeRemovedProjects(raw, removedProjectKeys ?? new Set());
-      return kept.map((project) => ({
+      const mapped = kept.map((project) => ({
         ...project,
         families: listSessionFamilies(
           sessionsForProject(allSessions, project.key),
         ),
         activity: projectActivity.get(project.key),
       }));
+      if (sortMode === "name") {
+        mapped.sort((a, b) =>
+          projectDisplayName(a.root).localeCompare(projectDisplayName(b.root), undefined, { sensitivity: "base" }),
+        );
+      }
+      return mapped;
     },
-    [allSessions, projectActivity, removedProjectKeys],
+    [allSessions, projectActivity, removedProjectKeys, sortMode],
   );
 
   const isGroupExpanded = useCallback(
@@ -1476,6 +1494,53 @@ export function SessionSidebar({
               >
                 <circle cx="11" cy="11" r="7" />
                 <path d="m20 20-4-4" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={toggleSortMode}
+              title={sortMode === "recent" ? t("sidebar.sortByName") : t("sidebar.sortByRecent")}
+              aria-label={sortMode === "recent" ? t("sidebar.sortByName") : t("sidebar.sortByRecent")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 32,
+                height: 32,
+                padding: 0,
+                background: sortMode === "name" ? "var(--bg-selected)" : "var(--bg-hover)",
+                border: "1px solid var(--border)",
+                borderRadius: 7,
+                color: sortMode === "name" ? "var(--accent)" : "var(--text-muted)",
+                cursor: "pointer",
+                flexShrink: 0,
+                transition: "background 0.12s, color 0.12s",
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                {sortMode === "name" ? (
+                  <>
+                    <path d="M3 6h7" />
+                    <path d="M3 12h5" />
+                    <path d="M3 18h3" />
+                    <path d="m15 15 3 3 3-3" />
+                    <path d="M18 6v12" />
+                  </>
+                ) : (
+                  <>
+                    <circle cx="12" cy="12" r="9" />
+                    <polyline points="12 7 12 12 15 15" />
+                  </>
+                )}
               </svg>
             </button>
           </div>

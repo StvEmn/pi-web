@@ -201,6 +201,8 @@ export const zhCNLocale: LocalePlugin = {
     "sidebar.customPath": "打开目录…",
     "sidebar.removeProject": "移除项目",
     "sidebar.removeProjectTip": "仅从侧栏移除，会话文件保留在磁盘",
+    "sidebar.sortByName": "按名称排序",
+    "sidebar.sortByRecent": "按最近活动排序",
     "directoryPicker.selectDirectory": "选择目录",
     "directoryPicker.goToParent": "转到上级目录",
     "directoryPicker.directoryPath": "目录路径",

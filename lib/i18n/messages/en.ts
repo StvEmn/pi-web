@@ -206,6 +206,8 @@ export const enLocale: LocalePlugin = {
     "sidebar.customPath": "Open directory…",
     "sidebar.removeProject": "Remove project",
     "sidebar.removeProjectTip": "Hide from sidebar only — sessions stay on disk",
+    "sidebar.sortByName": "Sort by name",
+    "sidebar.sortByRecent": "Sort by recent activity",
     "directoryPicker.selectDirectory": "Select directory",
     "directoryPicker.goToParent": "Go to parent directory",
     "directoryPicker.directoryPath": "Directory path",
