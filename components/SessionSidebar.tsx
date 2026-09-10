@@ -530,8 +530,12 @@ export function SessionSidebar({
     useState<ValidatedProject | null>(null);
   // Project group expansion. null = no stored preference; render then falls
   // back to the default policy (only the most recent group expanded).
+  // Initialized lazily (null on both server and first client render) and
+  // restored after hydration — reading localStorage in the initializer would
+  // render a different group tree on the client than the server-rendered
+  // HTML (hydration mismatch). Same pattern as explorerOpen below.
   const [expandedGroupKeys, setExpandedGroupKeys] =
-    useState<Set<string> | null>(() => loadExpandedGroupKeys());
+    useState<Set<string> | null>(null);
   // Subagent row expansion, per family root. Ephemeral: subagents are a
   // drill-down view, collapsed again on reload.
   const [expandedFamilies, setExpandedFamilies] = useState<Set<string>>(
@@ -675,6 +679,12 @@ export function SessionSidebar({
   // preference after hydration so a collapsed explorer stays collapsed on reload.
   useEffect(() => {
     setExplorerOpen(loadExplorerOpen());
+  }, []);
+
+  // Restore the persisted group expansion after hydration (see the
+  // expandedGroupKeys initializer comment above).
+  useEffect(() => {
+    setExpandedGroupKeys(loadExpandedGroupKeys());
   }, []);
 
   // Persist unread markers so they survive a browser refresh before the user
