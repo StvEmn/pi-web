@@ -3143,20 +3143,6 @@ export function AppShell() {
           background: "var(--bg)",
         }}
       >
-        {/* Session tabs — full window width, above sidebar and center */}
-        <SessionTabBar
-          tabs={sessionTabs}
-          activeId={activeTabId}
-          onActivate={handleTabActivate}
-          onClose={handleTabClose}
-          onCloseOthers={handleTabCloseOthers}
-          onCloseRight={handleTabCloseRight}
-          runningSessionIds={runningSessionIds}
-          sessionNames={sessionNameMap}
-          sessionCwds={sessionCwdMap}
-          sidebarOpen={sidebarOpen}
-          onSidebarToggle={handleSidebarToggle}
-        />
         <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
           {/* Mobile overlay backdrop */}
           <div
@@ -3214,6 +3200,18 @@ export function AppShell() {
               minWidth: 0,
             }}
           >
+            {/* Session tabs — top of the center column (amends ADR-0004) */}
+            <SessionTabBar
+              tabs={sessionTabs}
+              activeId={activeTabId}
+              onActivate={handleTabActivate}
+              onClose={handleTabClose}
+              onCloseOthers={handleTabCloseOthers}
+              onCloseRight={handleTabCloseRight}
+              runningSessionIds={runningSessionIds}
+              sessionNames={sessionNameMap}
+              sessionCwds={sessionCwdMap}
+            />
             {/* Top bar */}
             <div
               ref={topBarRef}
@@ -3229,6 +3227,31 @@ export function AppShell() {
                   paddingTop: "env(safe-area-inset-top)",
                 }}
               >
+                <button
+                  onClick={handleSidebarToggle}
+                  title={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
+                  aria-label={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0,
+                    background: "none", border: "none", borderRight: "1px solid var(--border)",
+                    color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, transition: "color 0.12s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+                >
+                  {sidebarOpen ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" />
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="3" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                  )}
+                </button>
                 {isMobile && (
                   <div
                     ref={mobileToolbarRef}

@@ -35,13 +35,8 @@ test("project prefix appears only when tabs span multiple projects", () => {
   assert.match(source, /info\.projectPrefix\s*\n\s*\? `\$\{info\.projectPrefix\} · \$\{rawTitle\}`\s*\n\s*: rawTitle/);
 });
 
-test("sidebar toggle button has aria-label", () => {
-  assert.match(
-    source,
-    /aria-label=\{sidebarOpen \? translate\("sidebar\.hide"\) : translate\("sidebar\.show"\)\}/,
-  );
-});
-
+// Sidebar toggle moved to the AppShell tool top bar (ADR-0004 amendment);
+// coverage for its new home lives in AppShell.tab-layout.test.mjs.
 // ── Context menu (ticket 04) ───────────────────────────────────────────────
 
 test("tab context menu renders role=menu with three menuitem actions", () => {

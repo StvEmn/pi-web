@@ -348,6 +348,25 @@ try {
   assert.equal(await tabA.getAttribute("aria-selected"), "true");
   console.log("PASS: arrow keys / Home / End move tab selection");
 
+  // ── Layout: tab bar lives at the top of the center column (layout spec) ──
+  {
+    const tablistBox = await tablist.boundingBox();
+    const sidebarBox = await page.locator("#session-sidebar").boundingBox();
+    assert.ok(
+      tablistBox.x >= sidebarBox.x + sidebarBox.width - 1,
+      `tab bar must start at/beyond the sidebar's right edge (tab x=${tablistBox.x}, sidebar right=${sidebarBox.x + sidebarBox.width})`,
+    );
+    const topBar = await page
+      .getByRole("button", { name: "Hide sidebar", exact: true })
+      .boundingBox();
+    assert.ok(topBar, "sidebar toggle must exist in the tool top bar");
+    assert.ok(
+      topBar.y > tablistBox.y + tablistBox.height - 1,
+      "tool top bar (with sidebar toggle) must sit below the tab bar",
+    );
+  }
+  console.log("PASS: tab bar sits at the top of the center column");
+
   // ── Cross-project title prefix (ticket 04) ───────────────────────────
   // Same-project tabs [A, B]: no prefix. Tooltip shows full title + cwd.
   {
@@ -372,6 +391,14 @@ try {
   const tabC = page.getByRole("tab", { name: /Session C first message/i });
   await tabC.waitFor();
   assert.equal(await tabC.getAttribute("aria-selected"), "true");
+  {
+    // maxWidth 220 cap: a long title must not stretch the tab beyond it.
+    const box = await tabC.boundingBox();
+    assert.ok(
+      box.width <= 220,
+      `tab must respect the 220px width cap (got ${box.width})`,
+    );
+  }
   {
     const titleA = await tabA.getAttribute("title");
     assert.ok(
