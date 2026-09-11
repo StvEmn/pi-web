@@ -40,6 +40,9 @@ function spawnServer(entry) {
     HOSTNAME: "127.0.0.1",
     ELECTRON_RUN_AS_NODE: "1",
   };
+  // server.js sets this itself; a stale value from the parent makes the
+  // build/next start use an old config without generateBuildId
+  delete env.__NEXT_PRIVATE_STANDALONE_CONFIG;
 
   const staticDst = path.join(standaloneDir, ".next", "static");
   if (!fs.existsSync(staticDst)) {
@@ -134,15 +137,24 @@ function createWindow() {
 function cleanup() {
   if (serverProcess) {
     serverProcess.removeAllListeners();
-    // Windows: taskkill /T kills the process tree (node + children)
+    const pid = serverProcess.pid;
+    serverProcess = null;
+    // Sync kill — blocks until taskkill finishes, ensures port is freed before app exits
     try {
-      spawn("taskkill", ["/PID", String(serverProcess.pid), "/T", "/F"], {
+      require("child_process").spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], {
         stdio: "ignore",
         windowsHide: true,
+        timeout: 5000,
       });
     } catch {}
-    serverProcess = null;
   }
+  // Fallback: kill any leftover node.exe on our port
+  try {
+    require("child_process").spawnSync("powershell", [
+      "-Command",
+      `Get-NetTCPConnection -LocalPort ${PORT} -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }`,
+    ], { stdio: "ignore", windowsHide: true, timeout: 5000 });
+  } catch {}
 }
 
 // Single instance lock — prevent infinite process spawning
