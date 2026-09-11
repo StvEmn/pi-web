@@ -567,14 +567,27 @@ export function SessionSidebar({
   const [sessionSearchOpen, setSessionSearchOpen] = useState(false);
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
   // Group sort mode: recent (default) or name-ascending.
-  const [sortMode, setSortMode] = useState<"recent" | "name">((() => {
-    if (typeof window === "undefined") return "name";
-    try { return window.localStorage.getItem("pi-web:sidebar-sort-v1") === "recent" ? "recent" : "name"; } catch { return "name"; }
-  })());
+  const [sortMode, setSortMode] = useState<"recent" | "name">(
+    (() => {
+      if (typeof window === "undefined") return "name";
+      try {
+        return window.localStorage.getItem("pi-web:sidebar-sort-v1") ===
+          "recent"
+          ? "recent"
+          : "name";
+      } catch {
+        return "name";
+      }
+    })(),
+  );
   const toggleSortMode = useCallback(() => {
     setSortMode((prev) => {
       const next = prev === "recent" ? "name" : "recent";
-      try { window.localStorage.setItem("pi-web:sidebar-sort-v1", next); } catch { /* SSR or quota */ }
+      try {
+        window.localStorage.setItem("pi-web:sidebar-sort-v1", next);
+      } catch {
+        /* SSR or quota */
+      }
       return next;
     });
   }, []);
@@ -1086,7 +1099,9 @@ export function SessionSidebar({
         setSelectedCwd(data.cwd);
         setCustomPathOpen(false);
         // Restore project if it was removed from sidebar
-        setRemovedProjectKeys((prev) => unhideProject(prev ?? new Set(), data.projectKey!));
+        setRemovedProjectKeys((prev) =>
+          unhideProject(prev ?? new Set(), data.projectKey!),
+        );
       } catch (e) {
         setCustomPathError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -1220,11 +1235,6 @@ export function SessionSidebar({
     [onSelectSession],
   );
 
-  const handleNewSession = useCallback(() => {
-    if (!selectedCwd) return;
-    onNewSession?.(createTempSessionId(), selectedCwd);
-  }, [selectedCwd, onNewSession]);
-
   // Group-header "+": open a draft tab in that group's project cwd.
   const handleGroupNewSession = useCallback(
     (cwd: string) => {
@@ -1243,26 +1253,27 @@ export function SessionSidebar({
   // All-projects group tree: workspace-key merge + recent-activity ordering
   // come from getRecentProjects; each group keeps its own session families so
   // every existing session-row operation works unchanged inside the group.
-  const projectGroups = useMemo(
-    () => {
-      const raw = getRecentProjects(allSessions);
-      const kept = excludeRemovedProjects(raw, removedProjectKeys ?? new Set());
-      const mapped = kept.map((project) => ({
-        ...project,
-        families: listSessionFamilies(
-          sessionsForProject(allSessions, project.key),
+  const projectGroups = useMemo(() => {
+    const raw = getRecentProjects(allSessions);
+    const kept = excludeRemovedProjects(raw, removedProjectKeys ?? new Set());
+    const mapped = kept.map((project) => ({
+      ...project,
+      families: listSessionFamilies(
+        sessionsForProject(allSessions, project.key),
+      ),
+      activity: projectActivity.get(project.key),
+    }));
+    if (sortMode === "name") {
+      mapped.sort((a, b) =>
+        projectDisplayName(a.root).localeCompare(
+          projectDisplayName(b.root),
+          undefined,
+          { sensitivity: "base" },
         ),
-        activity: projectActivity.get(project.key),
-      }));
-      if (sortMode === "name") {
-        mapped.sort((a, b) =>
-          projectDisplayName(a.root).localeCompare(projectDisplayName(b.root), undefined, { sensitivity: "base" }),
-        );
-      }
-      return mapped;
-    },
-    [allSessions, projectActivity, removedProjectKeys, sortMode],
-  );
+      );
+    }
+    return mapped;
+  }, [allSessions, projectActivity, removedProjectKeys, sortMode]);
 
   const isGroupExpanded = useCallback(
     (key: string, index: number) =>
@@ -1415,61 +1426,6 @@ export function SessionSidebar({
           <PiWebTitle />
           <div style={{ display: "flex", gap: 6 }}>
             <button
-              onClick={handleNewSession}
-              disabled={!selectedCwd}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5,
-                background: "var(--bg-hover)",
-                border: "1px solid var(--border)",
-                color: selectedCwd ? "var(--text-muted)" : "var(--text-dim)",
-                cursor: selectedCwd ? "pointer" : "not-allowed",
-                height: 32,
-                paddingLeft: 10,
-                paddingRight: 12,
-                borderRadius: 7,
-                fontSize: 12,
-                fontWeight: 500,
-                letterSpacing: "-0.01em",
-                flexShrink: 0,
-                transition: "background 0.12s, color 0.12s, border-color 0.12s",
-              }}
-              title={
-                selectedCwd
-                  ? t("sidebar.newSessionTitle", { path: selectedCwd })
-                  : t("sidebar.selectProject")
-              }
-              onMouseEnter={(e) => {
-                if (!selectedCwd) return;
-                e.currentTarget.style.background = "var(--bg-selected)";
-                e.currentTarget.style.color = "var(--accent)";
-                e.currentTarget.style.borderColor = "rgba(37,99,235,0.35)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--bg-hover)";
-                e.currentTarget.style.color = selectedCwd
-                  ? "var(--text-muted)"
-                  : "var(--text-dim)";
-                e.currentTarget.style.borderColor = "var(--border)";
-              }}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 12 12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-              >
-                <line x1="6" y1="1" x2="6" y2="11" />
-                <line x1="1" y1="6" x2="11" y2="6" />
-              </svg>
-              {t("sidebar.new")}
-            </button>
-            <button
               type="button"
               onClick={() => {
                 setSessionSearchOpen((open) => !open);
@@ -1499,8 +1455,16 @@ export function SessionSidebar({
             <button
               type="button"
               onClick={toggleSortMode}
-              title={sortMode === "recent" ? t("sidebar.sortByName") : t("sidebar.sortByRecent")}
-              aria-label={sortMode === "recent" ? t("sidebar.sortByName") : t("sidebar.sortByRecent")}
+              title={
+                sortMode === "recent"
+                  ? t("sidebar.sortByName")
+                  : t("sidebar.sortByRecent")
+              }
+              aria-label={
+                sortMode === "recent"
+                  ? t("sidebar.sortByName")
+                  : t("sidebar.sortByRecent")
+              }
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -1508,10 +1472,14 @@ export function SessionSidebar({
                 width: 32,
                 height: 32,
                 padding: 0,
-                background: sortMode === "name" ? "var(--bg-selected)" : "var(--bg-hover)",
+                background:
+                  sortMode === "name"
+                    ? "var(--bg-selected)"
+                    : "var(--bg-hover)",
                 border: "1px solid var(--border)",
                 borderRadius: 7,
-                color: sortMode === "name" ? "var(--accent)" : "var(--text-muted)",
+                color:
+                  sortMode === "name" ? "var(--accent)" : "var(--text-muted)",
                 cursor: "pointer",
                 flexShrink: 0,
                 transition: "background 0.12s, color 0.12s",
@@ -2257,7 +2225,9 @@ export function SessionSidebar({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const next = new Set<string>(removedProjectKeys ?? new Set<string>());
+                          const next = new Set<string>(
+                            removedProjectKeys ?? new Set<string>(),
+                          );
                           next.add(row.group.key);
                           setRemovedProjectKeys(next);
                           saveRemovedProjects(next);
@@ -2278,8 +2248,12 @@ export function SessionSidebar({
                           cursor: "pointer",
                           borderRadius: 5,
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-hover)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "var(--bg-hover)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "none";
+                        }}
                       >
                         <svg
                           width="11"

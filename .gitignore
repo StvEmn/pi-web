@@ -10,9 +10,16 @@
 !.yarn/releases
 !.yarn/versions
 
+# pi-lens
+.pi/
+
 # testing
 /coverage
 /test-results/
+
+# electron
+/electron/_standalone
+/dist-electron
 
 # next.js
 /.next/

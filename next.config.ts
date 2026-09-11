@@ -4,15 +4,28 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 const configDir = dirname(fileURLToPath(import.meta.url));
-const { version } = JSON.parse(readFileSync(join(configDir, "package.json"), "utf8")) as { version: string };
+const { version } = JSON.parse(
+  readFileSync(join(configDir, "package.json"), "utf8"),
+) as { version: string };
 let piVersion = "unknown";
 try {
-  const piPkgPath = join(configDir, "node_modules/@earendil-works/pi-coding-agent/package.json");
-  piVersion = (JSON.parse(readFileSync(piPkgPath, "utf8")) as { version: string }).version;
-} catch { /* package not found, use default */ }
+  const piPkgPath = join(
+    configDir,
+    "node_modules/@earendil-works/pi-coding-agent/package.json",
+  );
+  piVersion = (
+    JSON.parse(readFileSync(piPkgPath, "utf8")) as { version: string }
+  ).version;
+} catch {
+  /* package not found, use default */
+}
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   outputFileTracingRoot: configDir,
+  outputFileTracingExcludes: {
+    "**/*": ["C:/Users/BugFarmer/AppData/Roaming/baidu/**"],
+  },
   serverExternalPackages: [
     "node-pty",
     "undici",
@@ -52,7 +65,10 @@ const nextConfig: NextConfig = {
       {
         source: "/",
         headers: [
-          { key: "Cache-Control", value: "private, no-cache, max-age=0, must-revalidate" },
+          {
+            key: "Cache-Control",
+            value: "private, no-cache, max-age=0, must-revalidate",
+          },
         ],
       },
       {
