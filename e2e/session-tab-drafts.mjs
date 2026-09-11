@@ -133,7 +133,9 @@ try {
   const tabA = page.getByRole("tab", { name: /Session A first message/i });
   await tabA.waitFor();
 
-  const newButton = page.getByRole("button", { name: "New", exact: true }).first();
+  // The sidebar "New" button was removed; use the group-header "+" button
+  // for the first expanded group (project-a) instead.
+  const newButton = page.getByRole("button", { name: /New session in/ }).first();
 
   // ── Open a draft tab ───────────────────────────────────────────────────────
   await newButton.click();
