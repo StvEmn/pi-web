@@ -1440,6 +1440,56 @@ export function SessionSidebar({
           <div style={{ display: "flex", gap: 6 }}>
             <button
               type="button"
+              onClick={handleCustomPathClick}
+              title={t("sidebar.customPath")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                background: "var(--bg-hover)",
+                border: "1px solid var(--border)",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                height: 32,
+                paddingLeft: 10,
+                paddingRight: 12,
+                borderRadius: 7,
+                fontSize: 12,
+                fontWeight: 500,
+                letterSpacing: "-0.01em",
+                flexShrink: 0,
+                transition:
+                  "background 0.12s, color 0.12s, border-color 0.12s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--bg-selected)";
+                e.currentTarget.style.color = "var(--accent)";
+                e.currentTarget.style.borderColor = "rgba(37,99,235,0.35)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--bg-hover)";
+                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.borderColor = "var(--border)";
+              }}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 7V5a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+              </svg>
+              {t("sidebar.customPath")}
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setSessionSearchOpen((open) => !open);
                 setWtDropdownOpen(false);
@@ -2407,35 +2457,6 @@ export function SessionSidebar({
           )}
         </div>
       </SessionSearch>
-
-      {/* Project entry points previously in the removed dropdown */}
-      <div
-        style={{
-          display: "flex",
-          flexShrink: 0,
-          borderTop: "1px solid var(--border)",
-        }}
-      >
-        <button
-          onClick={handleCustomPathClick}
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 5,
-            height: 28,
-            padding: 0,
-            background: "none",
-            border: "none",
-            color: "var(--text-dim)",
-            cursor: "pointer",
-            fontSize: 11,
-          }}
-        >
-          {t("sidebar.customPath")}
-        </button>
-      </div>
 
       {/* File Explorer section */}
       {(selectedCwdProp || selectedCwd) && (
