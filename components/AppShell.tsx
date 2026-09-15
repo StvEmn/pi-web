@@ -131,7 +131,9 @@ function parkedDraftTabKey(tabId: string): string {
 export function AppShell() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [initialNavigation] = useState(() => getInitialNavigation(searchParams));
+  const [initialNavigation] = useState(() =>
+    getInitialNavigation(searchParams),
+  );
   // Keep the system-theme subscription mounted for the lifetime of the app.
   useTheme();
   const { locale, t: translate } = useI18n();
@@ -278,8 +280,12 @@ export function AppShell() {
   );
   const [projectTrustDialogOpen, setProjectTrustDialogOpen] = useState(false);
   const [projectTrustBusy, setProjectTrustBusy] = useState(false);
-  const [projectTrustError, setProjectTrustError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(() => !initialNavigation.sidebarCollapsed);
+  const [projectTrustError, setProjectTrustError] = useState<string | null>(
+    null,
+  );
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => !initialNavigation.sidebarCollapsed,
+  );
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [mobileToolbarMoreOpen, setMobileToolbarMoreOpen] = useState(false);
   const [mobileSidebarReady, setMobileSidebarReady] = useState(false);
@@ -475,8 +481,14 @@ export function AppShell() {
   );
 
   // Single active panel — only one dropdown open at a time
-  const [activeTopPanel, setActiveTopPanel] = useState<"agents" | "branches" | "system" | "tools" | "session" | null>(null);
-  const [topPanelPos, setTopPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [activeTopPanel, setActiveTopPanel] = useState<
+    "agents" | "branches" | "system" | "tools" | "session" | null
+  >(null);
+  const [topPanelPos, setTopPanelPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!sessionHasBranches) {
@@ -490,14 +502,18 @@ export function AppShell() {
     }
   }, [hasSubagentSessions]);
 
-  const toggleTopPanel = useCallback((
-    panel: "agents" | "branches" | "system" | "tools" | "session",
-    keepMobileToolbarOpen = false,
-  ) => {
-    if (isMobile) setSidebarOpen(false);
-    setActiveTopPanel((cur) => cur === panel ? null : panel);
-    if (isMobile && isNarrowMobile && keepMobileToolbarOpen) setMobileToolbarMoreOpen(true);
-  }, [isMobile, isNarrowMobile]);
+  const toggleTopPanel = useCallback(
+    (
+      panel: "agents" | "branches" | "system" | "tools" | "session",
+      keepMobileToolbarOpen = false,
+    ) => {
+      if (isMobile) setSidebarOpen(false);
+      setActiveTopPanel((cur) => (cur === panel ? null : panel));
+      if (isMobile && isNarrowMobile && keepMobileToolbarOpen)
+        setMobileToolbarMoreOpen(true);
+    },
+    [isMobile, isNarrowMobile],
+  );
 
   const handleSystemInfoToggle = useCallback(
     (panel: "system" | "tools", keepMobileToolbarOpen = false) => {
@@ -577,7 +593,6 @@ export function AppShell() {
   useEffect(() => {
     setMobileToolbarMoreOpen(false);
   }, [isMobile, isNarrowMobile, selectedSession?.id, newSessionDraftId]);
-
 
   useEffect(() => {
     if (!activeTopPanel || !topBarRef.current) return;
@@ -1949,7 +1964,6 @@ export function AppShell() {
     </>
   );
 
-
   const renderProjectTrustWarning = (mobileBanner: boolean) => {
     if (!showChat || !projectTrust?.requiresTrust || projectTrust.trusted)
       return null;
@@ -3012,370 +3026,786 @@ export function AppShell() {
             }}
           >
             {/* Top bar */}
-            <div ref={topBarRef} style={{ flexShrink: 0, background: "var(--bg-panel)" }}>
-        <div style={{ display: "flex", alignItems: "center", position: "relative", borderBottom: "1px solid var(--border)", height: "calc(36px + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}>
-          <button
-            onClick={handleSidebarToggle}
-             title={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
-             aria-label={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0,
-              background: "none", border: "none", borderRight: "1px solid var(--border)",
-              color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, transition: "color 0.12s",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
-          >
-            {sidebarOpen ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" />
-              </svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            )}
-          </button>
-          {isMobile && (
             <div
-              ref={mobileToolbarRef}
-              data-mobile-toolbar="true"
-              style={{
-                position: "relative",
-                display: "flex",
-                alignItems: "stretch",
-                flex: 1,
-                minWidth: 0,
-                height: "100%",
-              }}
+              ref={topBarRef}
+              style={{ flexShrink: 0, background: "var(--bg-panel)" }}
             >
-              {isNarrowMobile && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  position: "relative",
+                  borderBottom: "1px solid var(--border)",
+                  height: "calc(36px + env(safe-area-inset-top))",
+                  paddingTop: "env(safe-area-inset-top)",
+                }}
+              >
                 <button
-                  type="button"
-                  onClick={handleMobileToolbarMoreToggle}
-                  title={mobileToolbarMoreOpen ? translate("chat.close") : translate("chat.moreControls")}
-                  aria-label={mobileToolbarMoreOpen ? translate("chat.close") : translate("chat.moreControls")}
-                  aria-controls="mobile-toolbar-actions"
-                  aria-expanded={mobileToolbarMoreOpen}
-                  data-mobile-toolbar-more="true"
+                  onClick={handleSidebarToggle}
+                  title={
+                    sidebarOpen
+                      ? translate("sidebar.hide")
+                      : translate("sidebar.show")
+                  }
+                  aria-label={
+                    sidebarOpen
+                      ? translate("sidebar.hide")
+                      : translate("sidebar.show")
+                  }
                   style={{
-                    position: "relative",
-                    zIndex: mobileToolbarMoreOpen ? 21 : undefined,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0,
-                    background: mobileToolbarMoreOpen ? "var(--bg-selected)" : "none",
-                    border: "none", borderRight: "1px solid var(--border)",
-                    color: mobileToolbarMoreOpen ? "var(--text)" : "var(--text-muted)",
-                    cursor: "pointer", flexShrink: 0, transition: "color 0.12s, background 0.12s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: TOP_BAR_ICON_BUTTON_SIZE,
+                    height: TOP_BAR_ICON_BUTTON_SIZE,
+                    padding: 0,
+                    background: "none",
+                    border: "none",
+                    borderRight: "1px solid var(--border)",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    transition: "color 0.12s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "var(--text)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "var(--text-muted)";
                   }}
                 >
-                  {mobileToolbarMoreOpen ? (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                      <line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" />
+                  {sidebarOpen ? (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <line x1="9" y1="3" x2="9" y2="21" />
                     </svg>
                   ) : (
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="3" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="18" x2="21" y2="18" />
                     </svg>
                   )}
                 </button>
-              )}
-              {!isNarrowMobile && renderChatToolbarActions(true)}
-              {renderSessionStatsButton(true)}
-              {renderMainFileToggle(true)}
-              {isNarrowMobile && mobileToolbarMoreOpen && (
-                <div
-                  id="mobile-toolbar-actions"
-                  role="toolbar"
-                  aria-label={translate("chat.moreControls")}
-                  data-mobile-toolbar-actions="true"
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    right: 0,
-                    bottom: 0,
-                    left: TOP_BAR_ICON_BUTTON_SIZE,
-                    zIndex: 20,
-                    display: "flex",
-                    alignItems: "stretch",
-                    background: "color-mix(in srgb, var(--bg-panel) 94%, var(--bg))",
-                    boxShadow: "4px 0 18px rgba(0,0,0,0.12)",
-                    backdropFilter: "blur(10px)",
-                  }}
-                >
-                  {renderChatToolbarActions(true)}
-                </div>
-              )}
-            </div>
-          )}
-          {!isMobile && (
-            <>
-              {renderProjectTrustWarning(false)}
-              {renderChatToolbarActions(false)}
-              {renderSessionStatsButton(false)}
-            </>
-          )}
-          {!isMobile && renderMainFileToggle(false)}
-          {isMobile && sessionHasBranches && (
-            <BranchNavigator
-              tree={branchTree}
-              activeLeafId={branchActiveLeafId}
-              onLeafChange={handleBranchLeafChange}
-              inline
-              compact
-              containerRef={topBarRef}
-              open={activeTopPanel === "branches"}
-              onToggle={() => toggleTopPanel("branches")}
-              hasSession={showChat}
-              hideInlineButton
-            />
-          )}
-          {/* Top panel dropdown — shared, only one active at a time */}
-          {activeTopPanel && topPanelPos && (
-            <div style={{
-              position: "fixed",
-              top: topPanelPos.top,
-              left: topPanelPos.left,
-              width: topPanelPos.width,
-              maxHeight: `calc(100dvh - ${topPanelPos.top}px)`,
-              overflowY: "auto",
-              zIndex: 500,
-            }}>
-              {activeTopPanel === "agents" && activeSessionFamily && selectedSession && (
-                <AgentSessionPanel
-                  rootSession={activeSessionFamily.root}
-                  subagents={activeSessionFamily.subagents}
-                  selectedSessionId={selectedSession.id}
-                  runningSessionIds={runningSessionIds}
-                  onSelectSession={handleSelectSession}
-                />
-              )}
-              {activeTopPanel === "system" && (
-                <SystemPromptPanel
-                  loading={systemInfoLoading}
-                  prompt={systemPrompt}
-                  translate={translate}
-                />
-              )}
-              {activeTopPanel === "tools" && (
-                <ToolDefinitionsPanel
-                  loading={systemInfoLoading}
-                  tools={systemTools}
-                  translate={translate}
-                />
-              )}
-              {activeTopPanel === "session" && (
-                <div className="session-info-popover" style={{
-                  background: "var(--bg-panel)",
-                  borderBottom: "1px solid var(--border)",
-                  boxShadow: "0 10px 28px rgba(0,0,0,0.10)",
-                  padding: "12px 16px",
-                }}>
-                  {sessionStats ? (() => {
-                    const formatDuration = (ms: number) => {
-                      if (ms <= 0) return "0s";
-                      const totalSec = Math.floor(ms / 1000);
-                      const h = Math.floor(totalSec / 3600);
-                      const m = Math.floor((totalSec % 3600) / 60);
-                      const s = totalSec % 60;
-                      if (h > 0) return `${h}h ${m}m`;
-                      if (m > 0) return `${m}m ${s}s`;
-                      return `${s}s`;
-                    };
-                    const totalActiveMs = sessionStats.totalActiveMs ?? 0;
-                    const ws = selectedSession;
-                    const sessionRows = [
-                       ...(sessionStats.sessionName ? [{ label: translate("session.name"), value: sessionStats.sessionName, copyField: null }] : []),
-                       { label: translate("session.file"), value: sessionStats.sessionFile ?? translate("session.inMemory"), copyField: "file" as const },
-                       { label: translate("session.id"), value: sessionStats.sessionId, copyField: "id" as const },
-                       ...(totalActiveMs > 0 ? [{ label: translate("session.totalActive"), value: formatDuration(totalActiveMs), copyField: null }] : []),
-                    ];
-                    const projectRows = [
-                      ...(ws ? [{ label: translate("session.projectDir"), value: ws.projectRoot ?? ws.cwd, copyField: "projectDir" as const }] : []),
-                      ...(ws?.branch ? [{ label: translate("session.gitBranch"), value: ws.branch, copyField: "gitBranch" as const }] : []),
-                      ...(ws?.isWorktree ? [{ label: translate("session.gitWorktree"), value: ws.cwd, copyField: "gitWorktree" as const }] : []),
-                    ];
-                    const messageRows = [
-                       [translate("session.user"), sessionStats.userMessages.toLocaleString(locale)],
-                       [translate("session.assistant"), sessionStats.assistantMessages.toLocaleString(locale)],
-                       [translate("session.toolCalls"), sessionStats.toolCalls.toLocaleString(locale)],
-                       [translate("session.toolResults"), sessionStats.toolResults.toLocaleString(locale)],
-                       [translate("session.total"), sessionStats.totalMessages.toLocaleString(locale)],
-                    ];
-                    const tokenRows = [
-                       [translate("session.input"), sessionStats.tokens.input.toLocaleString(locale)],
-                       [translate("session.output"), sessionStats.tokens.output.toLocaleString(locale)],
-                       ...(sessionStats.tokens.cacheRead > 0 ? [[translate("session.cacheRead"), sessionStats.tokens.cacheRead.toLocaleString(locale)]] : []),
-                       ...(sessionStats.tokens.cacheWrite > 0 ? [[translate("session.cacheWrite"), sessionStats.tokens.cacheWrite.toLocaleString(locale)]] : []),
-                       [translate("session.total"), sessionStats.tokens.total.toLocaleString(locale)],
-                    ];
-                    const ctx = contextUsage ?? sessionStats.contextUsage;
-                    const formatCompact = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(0)}k` : String(n);
-                    const extraTokenRows = [
-                       ...(sessionStats.cost > 0 ? [[translate("session.cost"), `$${sessionStats.cost.toFixed(4)}`]] : []),
-                       ...(ctx?.contextWindow ? [[translate("session.context"), `${ctx.percent !== null ? `${ctx.percent.toFixed(1)}%` : "?"} / ${formatCompact(ctx.contextWindow)}`]] : []),
-                       // Cache hit rate = cache reads / (input + cache writes + cache reads) — the denominator covers all input-class tokens.
-                       ...(sessionStats.tokens.cacheRead + sessionStats.tokens.cacheWrite > 0 && sessionStats.tokens.cacheRead + sessionStats.tokens.cacheWrite + sessionStats.tokens.input > 0
-                         ? [[translate("session.cacheHitRate"), `${(sessionStats.tokens.cacheRead / (sessionStats.tokens.cacheRead + sessionStats.tokens.cacheWrite + sessionStats.tokens.input) * 100).toFixed(1)}%`]]
-                         : []),
-                    ];
-                    const section = (
-                      title: string,
-                      sectionRows: string[][],
-                      valueAlign: "left" | "right" = "left",
-                      compact = false,
-                    ) => (
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>{title}</div>
-                          <div style={{
-                            display: "grid",
-                            gridTemplateColumns: compact ? "max-content max-content" : "auto minmax(0, 1fr)",
-                            columnGap: compact ? 14 : 12,
-                            rowGap: 4,
-                            justifyContent: compact ? "start" : undefined,
-                          }}>
-                            {sectionRows.map(([label, value]) => (
-                              <div key={`${title}:${label}`} style={{ display: "contents" }}>
-                                <div style={{ color: "var(--text-dim)", whiteSpace: "nowrap" }}>{label}</div>
-                                <div style={{
-                                  color: "var(--text-muted)",
-                                  minWidth: 0,
-                                  overflowWrap: compact ? "normal" : "anywhere",
-                                  textAlign: valueAlign,
-                                  whiteSpace: valueAlign === "right" ? "nowrap" : "normal",
-                                }}>{value}</div>
+                {isMobile && (
+                  <div
+                    ref={mobileToolbarRef}
+                    data-mobile-toolbar="true"
+                    style={{
+                      position: "relative",
+                      display: "flex",
+                      alignItems: "stretch",
+                      flex: 1,
+                      minWidth: 0,
+                      height: "100%",
+                    }}
+                  >
+                    {isNarrowMobile && (
+                      <button
+                        type="button"
+                        onClick={handleMobileToolbarMoreToggle}
+                        title={
+                          mobileToolbarMoreOpen
+                            ? translate("chat.close")
+                            : translate("chat.moreControls")
+                        }
+                        aria-label={
+                          mobileToolbarMoreOpen
+                            ? translate("chat.close")
+                            : translate("chat.moreControls")
+                        }
+                        aria-controls="mobile-toolbar-actions"
+                        aria-expanded={mobileToolbarMoreOpen}
+                        data-mobile-toolbar-more="true"
+                        style={{
+                          position: "relative",
+                          zIndex: mobileToolbarMoreOpen ? 21 : undefined,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: TOP_BAR_ICON_BUTTON_SIZE,
+                          height: TOP_BAR_ICON_BUTTON_SIZE,
+                          padding: 0,
+                          background: mobileToolbarMoreOpen
+                            ? "var(--bg-selected)"
+                            : "none",
+                          border: "none",
+                          borderRight: "1px solid var(--border)",
+                          color: mobileToolbarMoreOpen
+                            ? "var(--text)"
+                            : "var(--text-muted)",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                          transition: "color 0.12s, background 0.12s",
+                        }}
+                      >
+                        {mobileToolbarMoreOpen ? (
+                          <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            aria-hidden="true"
+                          >
+                            <line x1="5" y1="5" x2="19" y2="19" />
+                            <line x1="19" y1="5" x2="5" y2="19" />
+                          </svg>
+                        ) : (
+                          <svg
+                            width="17"
+                            height="17"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <circle cx="5" cy="12" r="1.5" />
+                            <circle cx="12" cy="12" r="1.5" />
+                            <circle cx="19" cy="12" r="1.5" />
+                          </svg>
+                        )}
+                      </button>
+                    )}
+                    {!isNarrowMobile && renderChatToolbarActions(true)}
+                    {renderSessionStatsButton(true)}
+                    {renderMainFileToggle(true)}
+                    {isNarrowMobile && mobileToolbarMoreOpen && (
+                      <div
+                        id="mobile-toolbar-actions"
+                        role="toolbar"
+                        aria-label={translate("chat.moreControls")}
+                        data-mobile-toolbar-actions="true"
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          right: 0,
+                          bottom: 0,
+                          left: TOP_BAR_ICON_BUTTON_SIZE,
+                          zIndex: 20,
+                          display: "flex",
+                          alignItems: "stretch",
+                          background:
+                            "color-mix(in srgb, var(--bg-panel) 94%, var(--bg))",
+                          boxShadow: "4px 0 18px rgba(0,0,0,0.12)",
+                          backdropFilter: "blur(10px)",
+                        }}
+                      >
+                        {renderChatToolbarActions(true)}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!isMobile && (
+                  <>
+                    {renderProjectTrustWarning(false)}
+                    {renderChatToolbarActions(false)}
+                    {renderSessionStatsButton(false)}
+                  </>
+                )}
+                {!isMobile && renderMainFileToggle(false)}
+                {isMobile && sessionHasBranches && (
+                  <BranchNavigator
+                    tree={branchTree}
+                    activeLeafId={branchActiveLeafId}
+                    onLeafChange={handleBranchLeafChange}
+                    inline
+                    compact
+                    containerRef={topBarRef}
+                    open={activeTopPanel === "branches"}
+                    onToggle={() => toggleTopPanel("branches")}
+                    hasSession={showChat}
+                    hideInlineButton
+                  />
+                )}
+                {/* Top panel dropdown — shared, only one active at a time */}
+                {activeTopPanel && topPanelPos && (
+                  <div
+                    style={{
+                      position: "fixed",
+                      top: topPanelPos.top,
+                      left: topPanelPos.left,
+                      width: topPanelPos.width,
+                      maxHeight: `calc(100dvh - ${topPanelPos.top}px)`,
+                      overflowY: "auto",
+                      zIndex: 500,
+                    }}
+                  >
+                    {activeTopPanel === "agents" &&
+                      activeSessionFamily &&
+                      selectedSession && (
+                        <AgentSessionPanel
+                          rootSession={activeSessionFamily.root}
+                          subagents={activeSessionFamily.subagents}
+                          selectedSessionId={selectedSession.id}
+                          runningSessionIds={runningSessionIds}
+                          onSelectSession={handleSelectSession}
+                        />
+                      )}
+                    {activeTopPanel === "system" && (
+                      <SystemPromptPanel
+                        loading={systemInfoLoading}
+                        prompt={systemPrompt}
+                        translate={translate}
+                      />
+                    )}
+                    {activeTopPanel === "tools" && (
+                      <ToolDefinitionsPanel
+                        loading={systemInfoLoading}
+                        tools={systemTools}
+                        translate={translate}
+                      />
+                    )}
+                    {activeTopPanel === "session" && (
+                      <div
+                        className="session-info-popover"
+                        style={{
+                          background: "var(--bg-panel)",
+                          borderBottom: "1px solid var(--border)",
+                          boxShadow: "0 10px 28px rgba(0,0,0,0.10)",
+                          padding: "12px 16px",
+                        }}
+                      >
+                        {sessionStats ? (
+                          (() => {
+                            const formatDuration = (ms: number) => {
+                              if (ms <= 0) return "0s";
+                              const totalSec = Math.floor(ms / 1000);
+                              const h = Math.floor(totalSec / 3600);
+                              const m = Math.floor((totalSec % 3600) / 60);
+                              const s = totalSec % 60;
+                              if (h > 0) return `${h}h ${m}m`;
+                              if (m > 0) return `${m}m ${s}s`;
+                              return `${s}s`;
+                            };
+                            const totalActiveMs =
+                              sessionStats.totalActiveMs ?? 0;
+                            const ws = selectedSession;
+                            const sessionRows = [
+                              ...(sessionStats.sessionName
+                                ? [
+                                    {
+                                      label: translate("session.name"),
+                                      value: sessionStats.sessionName,
+                                      copyField: null,
+                                    },
+                                  ]
+                                : []),
+                              {
+                                label: translate("session.file"),
+                                value:
+                                  sessionStats.sessionFile ??
+                                  translate("session.inMemory"),
+                                copyField: "file" as const,
+                              },
+                              {
+                                label: translate("session.id"),
+                                value: sessionStats.sessionId,
+                                copyField: "id" as const,
+                              },
+                              ...(totalActiveMs > 0
+                                ? [
+                                    {
+                                      label: translate("session.totalActive"),
+                                      value: formatDuration(totalActiveMs),
+                                      copyField: null,
+                                    },
+                                  ]
+                                : []),
+                            ];
+                            const projectRows = [
+                              ...(ws
+                                ? [
+                                    {
+                                      label: translate("session.projectDir"),
+                                      value: ws.projectRoot ?? ws.cwd,
+                                      copyField: "projectDir" as const,
+                                    },
+                                  ]
+                                : []),
+                              ...(ws?.branch
+                                ? [
+                                    {
+                                      label: translate("session.gitBranch"),
+                                      value: ws.branch,
+                                      copyField: "gitBranch" as const,
+                                    },
+                                  ]
+                                : []),
+                              ...(ws?.isWorktree
+                                ? [
+                                    {
+                                      label: translate("session.gitWorktree"),
+                                      value: ws.cwd,
+                                      copyField: "gitWorktree" as const,
+                                    },
+                                  ]
+                                : []),
+                            ];
+                            const messageRows = [
+                              [
+                                translate("session.user"),
+                                sessionStats.userMessages.toLocaleString(
+                                  locale,
+                                ),
+                              ],
+                              [
+                                translate("session.assistant"),
+                                sessionStats.assistantMessages.toLocaleString(
+                                  locale,
+                                ),
+                              ],
+                              [
+                                translate("session.toolCalls"),
+                                sessionStats.toolCalls.toLocaleString(locale),
+                              ],
+                              [
+                                translate("session.toolResults"),
+                                sessionStats.toolResults.toLocaleString(locale),
+                              ],
+                              [
+                                translate("session.total"),
+                                sessionStats.totalMessages.toLocaleString(
+                                  locale,
+                                ),
+                              ],
+                            ];
+                            const tokenRows = [
+                              [
+                                translate("session.input"),
+                                sessionStats.tokens.input.toLocaleString(
+                                  locale,
+                                ),
+                              ],
+                              [
+                                translate("session.output"),
+                                sessionStats.tokens.output.toLocaleString(
+                                  locale,
+                                ),
+                              ],
+                              ...(sessionStats.tokens.cacheRead > 0
+                                ? [
+                                    [
+                                      translate("session.cacheRead"),
+                                      sessionStats.tokens.cacheRead.toLocaleString(
+                                        locale,
+                                      ),
+                                    ],
+                                  ]
+                                : []),
+                              ...(sessionStats.tokens.cacheWrite > 0
+                                ? [
+                                    [
+                                      translate("session.cacheWrite"),
+                                      sessionStats.tokens.cacheWrite.toLocaleString(
+                                        locale,
+                                      ),
+                                    ],
+                                  ]
+                                : []),
+                              [
+                                translate("session.total"),
+                                sessionStats.tokens.total.toLocaleString(
+                                  locale,
+                                ),
+                              ],
+                            ];
+                            const ctx =
+                              contextUsage ?? sessionStats.contextUsage;
+                            const formatCompact = (n: number) =>
+                              n >= 1_000_000
+                                ? `${(n / 1_000_000).toFixed(1)}M`
+                                : n >= 1000
+                                  ? `${(n / 1000).toFixed(0)}k`
+                                  : String(n);
+                            const extraTokenRows = [
+                              ...(sessionStats.cost > 0
+                                ? [
+                                    [
+                                      translate("session.cost"),
+                                      `$${sessionStats.cost.toFixed(4)}`,
+                                    ],
+                                  ]
+                                : []),
+                              ...(ctx?.contextWindow
+                                ? [
+                                    [
+                                      translate("session.context"),
+                                      `${ctx.percent !== null ? `${ctx.percent.toFixed(1)}%` : "?"} / ${formatCompact(ctx.contextWindow)}`,
+                                    ],
+                                  ]
+                                : []),
+                              // Cache hit rate = cache reads / (input + cache writes + cache reads) — the denominator covers all input-class tokens.
+                              ...(sessionStats.tokens.cacheRead +
+                                sessionStats.tokens.cacheWrite >
+                                0 &&
+                              sessionStats.tokens.cacheRead +
+                                sessionStats.tokens.cacheWrite +
+                                sessionStats.tokens.input >
+                                0
+                                ? [
+                                    [
+                                      translate("session.cacheHitRate"),
+                                      `${((sessionStats.tokens.cacheRead / (sessionStats.tokens.cacheRead + sessionStats.tokens.cacheWrite + sessionStats.tokens.input)) * 100).toFixed(1)}%`,
+                                    ],
+                                  ]
+                                : []),
+                            ];
+                            const section = (
+                              title: string,
+                              sectionRows: string[][],
+                              valueAlign: "left" | "right" = "left",
+                              compact = false,
+                            ) => (
+                              <div style={{ minWidth: 0 }}>
+                                <div
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: "var(--text)",
+                                    marginBottom: 6,
+                                  }}
+                                >
+                                  {title}
+                                </div>
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: compact
+                                      ? "max-content max-content"
+                                      : "auto minmax(0, 1fr)",
+                                    columnGap: compact ? 14 : 12,
+                                    rowGap: 4,
+                                    justifyContent: compact
+                                      ? "start"
+                                      : undefined,
+                                  }}
+                                >
+                                  {sectionRows.map(([label, value]) => (
+                                    <div
+                                      key={`${title}:${label}`}
+                                      style={{ display: "contents" }}
+                                    >
+                                      <div
+                                        style={{
+                                          color: "var(--text-dim)",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {label}
+                                      </div>
+                                      <div
+                                        style={{
+                                          color: "var(--text-muted)",
+                                          minWidth: 0,
+                                          overflowWrap: compact
+                                            ? "normal"
+                                            : "anywhere",
+                                          textAlign: valueAlign,
+                                          whiteSpace:
+                                            valueAlign === "right"
+                                              ? "nowrap"
+                                              : "normal",
+                                        }}
+                                      >
+                                        {value}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            ))}
+                            );
+                            const copyTitleKey: Record<
+                              SessionCopyField,
+                              string
+                            > = {
+                              file: "session.copyFile",
+                              id: "session.copyId",
+                              projectDir: "session.copyProjectDir",
+                              gitBranch: "session.copyGitBranch",
+                              gitWorktree: "session.copyGitWorktree",
+                            };
+                            const copyButton = (
+                              field: SessionCopyField,
+                              value: string,
+                            ) => {
+                              const copied = copiedSessionField === field;
+                              return (
+                                <button
+                                  type="button"
+                                  title={
+                                    copied
+                                      ? translate("session.copied")
+                                      : translate(copyTitleKey[field])
+                                  }
+                                  onClick={() =>
+                                    handleCopySessionField(field, value)
+                                  }
+                                  style={{
+                                    alignSelf: "start",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: 22,
+                                    height: 22,
+                                    marginTop: -2,
+                                    color: copied
+                                      ? "var(--accent)"
+                                      : "var(--text-dim)",
+                                    background: "transparent",
+                                    border: "1px solid var(--border)",
+                                    borderRadius: 4,
+                                    cursor: "pointer",
+                                    flex: "0 0 auto",
+                                    transition:
+                                      "color 0.12s, border-color 0.12s, background 0.12s",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.color =
+                                      "var(--accent)";
+                                    e.currentTarget.style.borderColor =
+                                      "var(--accent)";
+                                    e.currentTarget.style.background =
+                                      "var(--bg-hover)";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.color = copied
+                                      ? "var(--accent)"
+                                      : "var(--text-dim)";
+                                    e.currentTarget.style.borderColor =
+                                      "var(--border)";
+                                    e.currentTarget.style.background =
+                                      "transparent";
+                                  }}
+                                >
+                                  {copied ? (
+                                    <svg
+                                      width="12"
+                                      height="12"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      aria-hidden="true"
+                                    >
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                  ) : (
+                                    <svg
+                                      width="12"
+                                      height="12"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      aria-hidden="true"
+                                    >
+                                      <rect
+                                        x="9"
+                                        y="9"
+                                        width="13"
+                                        height="13"
+                                        rx="2"
+                                        ry="2"
+                                      />
+                                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                    </svg>
+                                  )}
+                                </button>
+                              );
+                            };
+                            const sessionInfoSection = (
+                              <div style={{ minWidth: 0 }}>
+                                <div
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: "var(--text)",
+                                    marginBottom: 6,
+                                  }}
+                                >
+                                  {translate("session.infoSection")}
+                                </div>
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns:
+                                      "auto minmax(0, 1fr) auto",
+                                    columnGap: 12,
+                                    rowGap: 8,
+                                    alignItems: "start",
+                                  }}
+                                >
+                                  {sessionRows.map((row) => (
+                                    <div
+                                      key={`session-info:${row.label}`}
+                                      style={{ display: "contents" }}
+                                    >
+                                      <div
+                                        style={{
+                                          color: "var(--text-dim)",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {row.label}
+                                      </div>
+                                      <div
+                                        style={{
+                                          color: "var(--text-muted)",
+                                          minWidth: 0,
+                                          overflowWrap: "anywhere",
+                                          wordBreak: "break-word",
+                                          whiteSpace: "normal",
+                                        }}
+                                      >
+                                        {row.value}
+                                      </div>
+                                      <div>
+                                        {row.copyField
+                                          ? copyButton(row.copyField, row.value)
+                                          : null}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                            const projectInfoSection =
+                              projectRows.length > 0 ? (
+                                <div style={{ minWidth: 0 }}>
+                                  <div
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color: "var(--text)",
+                                      marginBottom: 6,
+                                    }}
+                                  >
+                                    {translate("session.projectSection")}
+                                  </div>
+                                  <div
+                                    style={{
+                                      display: "grid",
+                                      gridTemplateColumns:
+                                        "auto minmax(0, 1fr) auto",
+                                      columnGap: 12,
+                                      rowGap: 8,
+                                      alignItems: "start",
+                                    }}
+                                  >
+                                    {projectRows.map((row) => (
+                                      <div
+                                        key={`project-info:${row.label}`}
+                                        style={{ display: "contents" }}
+                                      >
+                                        <div
+                                          style={{
+                                            color: "var(--text-dim)",
+                                            whiteSpace: "nowrap",
+                                          }}
+                                        >
+                                          {row.label}
+                                        </div>
+                                        <div
+                                          style={{
+                                            color: "var(--text-muted)",
+                                            minWidth: 0,
+                                            overflowWrap: "anywhere",
+                                            wordBreak: "break-word",
+                                            whiteSpace: "normal",
+                                          }}
+                                        >
+                                          {row.value}
+                                        </div>
+                                        <div>
+                                          {row.copyField
+                                            ? copyButton(
+                                                row.copyField,
+                                                row.value,
+                                              )
+                                            : null}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null;
+
+                            return (
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: isMobile
+                                    ? "1fr"
+                                    : "minmax(360px, 1.7fr) minmax(140px, 0.55fr) minmax(190px, 0.75fr)",
+                                  gap: isMobile ? 16 : 24,
+                                  fontSize: 12,
+                                  lineHeight: 1.5,
+                                  fontFamily: "var(--font-mono)",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: isMobile ? 16 : 20,
+                                  }}
+                                >
+                                  {sessionInfoSection}
+                                  {projectInfoSection}
+                                </div>
+                                {section(
+                                  translate("session.messages"),
+                                  messageRows,
+                                )}
+                                {section(
+                                  translate("session.tokens"),
+                                  [...tokenRows, ...extraTokenRows],
+                                  "right",
+                                  true,
+                                )}
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: "var(--text-muted)",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            {translate("session.load")}
                           </div>
-                        </div>
-                      );
-                    const copyTitleKey: Record<SessionCopyField, string> = {
-                      file: "session.copyFile",
-                      id: "session.copyId",
-                      projectDir: "session.copyProjectDir",
-                      gitBranch: "session.copyGitBranch",
-                      gitWorktree: "session.copyGitWorktree",
-                    };
-                    const copyButton = (field: SessionCopyField, value: string) => {
-                      const copied = copiedSessionField === field;
-                      return (
-                        <button
-                          type="button"
-                          title={copied ? translate("session.copied") : translate(copyTitleKey[field])}
-                          onClick={() => handleCopySessionField(field, value)}
-                          style={{
-                            alignSelf: "start",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: 22,
-                            height: 22,
-                            marginTop: -2,
-                            color: copied ? "var(--accent)" : "var(--text-dim)",
-                            background: "transparent",
-                            border: "1px solid var(--border)",
-                            borderRadius: 4,
-                            cursor: "pointer",
-                            flex: "0 0 auto",
-                            transition: "color 0.12s, border-color 0.12s, background 0.12s",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = "var(--accent)";
-                            e.currentTarget.style.borderColor = "var(--accent)";
-                            e.currentTarget.style.background = "var(--bg-hover)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = copied ? "var(--accent)" : "var(--text-dim)";
-                            e.currentTarget.style.borderColor = "var(--border)";
-                            e.currentTarget.style.background = "transparent";
-                          }}
-                        >
-                          {copied ? (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          ) : (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    };
-                    const sessionInfoSection = (
-                      <div style={{ minWidth: 0 }}>
-                         <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>{translate("session.infoSection")}</div>
-                        <div style={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr) auto", columnGap: 12, rowGap: 8, alignItems: "start" }}>
-                          {sessionRows.map((row) => (
-                            <div key={`session-info:${row.label}`} style={{ display: "contents" }}>
-                              <div style={{ color: "var(--text-dim)", whiteSpace: "nowrap" }}>{row.label}</div>
-                              <div style={{
-                                color: "var(--text-muted)",
-                                minWidth: 0,
-                                overflowWrap: "anywhere",
-                                wordBreak: "break-word",
-                                whiteSpace: "normal",
-                              }}>{row.value}</div>
-                              <div>{row.copyField ? copyButton(row.copyField, row.value) : null}</div>
-                            </div>
-                          ))}
-                        </div>
+                        )}
                       </div>
-                    );
-                    const projectInfoSection = projectRows.length > 0 ? (
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>{translate("session.projectSection")}</div>
-                        <div style={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr) auto", columnGap: 12, rowGap: 8, alignItems: "start" }}>
-                          {projectRows.map((row) => (
-                            <div key={`project-info:${row.label}`} style={{ display: "contents" }}>
-                              <div style={{ color: "var(--text-dim)", whiteSpace: "nowrap" }}>{row.label}</div>
-                              <div style={{
-                                color: "var(--text-muted)",
-                                minWidth: 0,
-                                overflowWrap: "anywhere",
-                                wordBreak: "break-word",
-                                whiteSpace: "normal",
-                              }}>{row.value}</div>
-                              <div>{row.copyField ? copyButton(row.copyField, row.value) : null}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null;
-
-                    return (
-                      <div style={{
-                        display: "grid",
-                        gridTemplateColumns: isMobile
-                          ? "1fr"
-                          : "minmax(360px, 1.7fr) minmax(140px, 0.55fr) minmax(190px, 0.75fr)",
-                        gap: isMobile ? 16 : 24,
-                        fontSize: 12,
-                        lineHeight: 1.5,
-                        fontFamily: "var(--font-mono)",
-                      }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 16 : 20 }}>
-                          {sessionInfoSection}
-                          {projectInfoSection}
-                        </div>
-                         {section(translate("session.messages"), messageRows)}
-                         {section(translate("session.tokens"), [...tokenRows, ...extraTokenRows], "right", true)}
-                      </div>
-                    );
-                  })() : (
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
-                       {translate("session.load")}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-        </div>
-        {isMobile && renderProjectTrustWarning(true)}
+                    )}
+                  </div>
+                )}
+              </div>
+              {isMobile && renderProjectTrustWarning(true)}
             </div>
 
             {/* Session tabs — second row of the center column, below the tool top bar */}

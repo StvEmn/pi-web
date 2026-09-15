@@ -40,12 +40,15 @@ export const enLocale: LocalePlugin = {
     "settings.languageDescription":
       "Choose the language used throughout the interface.",
     "settings.shellTool": "Shell tool",
-    "settings.shellToolDescription": "Choose which shell the model uses for commands. Direct ! and !! commands still use Bash.",
+    "settings.shellToolDescription":
+      "Choose which shell the model uses for commands. Direct ! and !! commands still use Bash.",
     "settings.pushPermission": "Background push (iOS home-screen app)",
-    "settings.pushPermissionDescription": "After adding this site to your home screen (iOS 16.4+), a system notification is shown on the lock screen when a session finishes while no window is visible. If notifications stop arriving, re-register here. Registration needs a user gesture, so it is never triggered automatically.",
+    "settings.pushPermissionDescription":
+      "After adding this site to your home screen (iOS 16.4+), a system notification is shown on the lock screen when a session finishes while no window is visible. If notifications stop arriving, re-register here. Registration needs a user gesture, so it is never triggered automatically.",
     "settings.pushRegister": "Register push",
     "settings.pushRegisterLoading": "Registering…",
-    "settings.pushRegistered": "✅ Push registered — background notifications are ready.",
+    "settings.pushRegistered":
+      "✅ Push registered — background notifications are ready.",
     "settings.pushRegisterFailed": "❌ Registration failed:",
     "settings.usePowerShell": "Use PowerShell instead of Bash",
     "settings.projectRequired": "Open a project to configure this section",
@@ -68,7 +71,8 @@ export const enLocale: LocalePlugin = {
     "agents.reloadRequired": "Reload the current session to apply this change.",
     "agents.reloadSession": "Reload session",
     "agents.maxConcurrent": "Concurrent sub-agents",
-    "agents.maxConcurrentDescription": "Maximum prompts running at once per parent session.",
+    "agents.maxConcurrentDescription":
+      "Maximum prompts running at once per parent session.",
     "agents.reloading": "Reloading...",
     "agents.loading": "Loading sub-agents...",
     "agents.new": "New sub-agent",
@@ -210,7 +214,8 @@ export const enLocale: LocalePlugin = {
     "sidebar.refresh": "Refresh",
     "sidebar.customPath": "Open directory…",
     "sidebar.removeProject": "Remove project",
-    "sidebar.removeProjectTip": "Hide from sidebar only — sessions stay on disk",
+    "sidebar.removeProjectTip":
+      "Hide from sidebar only — sessions stay on disk",
     "sidebar.sortByName": "Sort by name",
     "sidebar.sortByRecent": "Sort by recent activity",
     "directoryPicker.selectDirectory": "Select directory",
