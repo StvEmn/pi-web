@@ -10,6 +10,7 @@ const URL = `http://127.0.0.1:${PORT}`;
 
 let mainWindow = null;
 let serverProcess = null;
+const PID_FILE = path.join(app.getPath("userData"), "pi-web.pid");
 
 function log(...args) {
   try {
@@ -39,6 +40,8 @@ function spawnServer(entry) {
     PORT: String(PORT),
     HOSTNAME: "127.0.0.1",
     ELECTRON_RUN_AS_NODE: "1",
+    PI_WEB_PARENT_PID: String(process.pid),
+    PI_WEB_SERVER_PATH: entry,
   };
   // server.js sets this itself; a stale value from the parent makes the
   // build/next start use an old config without generateBuildId
@@ -56,8 +59,17 @@ function spawnServer(entry) {
     }
   }
 
-  log("[pi-web] Spawning server:", entry, "cwd:", standaloneDir);
-  const child = spawn(process.execPath, [entry], {
+  // Spawn the watchdog instead of the server directly. The watchdog reaps
+  // the server when this process dies — even if killed by the installer.
+  const watchdogPkg = path.join(
+    process.resourcesPath || "",
+    "server-watchdog.cjs",
+  );
+  const watchdogDev = path.join(__dirname, "server-watchdog.cjs");
+  const watchdog = fs.existsSync(watchdogPkg) ? watchdogPkg : watchdogDev;
+
+  log("[pi-web] Spawning watchdog:", watchdog, "for", entry);
+  const child = spawn(process.execPath, [watchdog], {
     env,
     cwd: standaloneDir,
     stdio: ["ignore", "pipe", "pipe"],
@@ -66,8 +78,13 @@ function spawnServer(entry) {
   child.stdout.on("data", (d) => log("[next]", d.toString().trimEnd()));
   child.stderr.on("data", (d) => log("[next:err]", d.toString().trimEnd()));
   child.on("error", (err) => log("[pi-web] Server spawn error:", err.message));
+  // Also write watchdog PID to file so cleanup can find it even if
+  // serverProcess is null (e.g. called twice or after watchdog exits).
+  try {
+    fs.writeFileSync(PID_FILE, String(child.pid), "utf-8");
+  } catch {}
   child.on("exit", (code, signal) => {
-    log(`[pi-web] Server exited code=${code} signal=${signal}`);
+    log(`[pi-web] Watchdog exited code=${code} signal=${signal}`);
     serverProcess = null;
   });
   return child;
@@ -141,19 +158,42 @@ function cleanup() {
     serverProcess = null;
     // Sync kill — blocks until taskkill finishes, ensures port is freed before app exits
     try {
-      require("child_process").spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], {
-        stdio: "ignore",
-        windowsHide: true,
-        timeout: 5000,
-      });
+      require("child_process").spawnSync(
+        "taskkill",
+        ["/PID", String(pid), "/T", "/F"],
+        {
+          stdio: "ignore",
+          windowsHide: true,
+          timeout: 5000,
+        },
+      );
     } catch {}
   }
-  // Fallback: kill any leftover node.exe on our port
+  // Fallback: read PID file and kill by PID (covers case where serverProcess was nulled)
   try {
-    require("child_process").spawnSync("powershell", [
-      "-Command",
-      `Get-NetTCPConnection -LocalPort ${PORT} -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }`,
-    ], { stdio: "ignore", windowsHide: true, timeout: 5000 });
+    const saved = fs.readFileSync(PID_FILE, "utf-8").trim();
+    if (saved) {
+      require("child_process").spawnSync(
+        "taskkill",
+        ["/PID", saved, "/T", "/F"],
+        { stdio: "ignore", windowsHide: true, timeout: 5000 },
+      );
+    }
+  } catch {}
+  try {
+    fs.unlinkSync(PID_FILE);
+  } catch {}
+  // Final fallback: kill any leftover node.exe on our port
+  try {
+    require("child_process").spawnSync(
+      "powershell",
+      [
+        "-NoProfile",
+        "-Command",
+        `Get-NetTCPConnection -LocalPort ${PORT} -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }`,
+      ],
+      { stdio: "ignore", windowsHide: true, timeout: 5000 },
+    );
   } catch {}
 }
 

@@ -1255,6 +1255,12 @@ export function SessionSidebar({
   // every existing session-row operation works unchanged inside the group.
   const projectGroups = useMemo(() => {
     const raw = getRecentProjects(allSessions);
+    // A directory just opened has no sessions yet — show it as an empty group
+    // immediately instead of waiting for the first session to be created.
+    const active = projectFor(selectedCwd);
+    if (active && !raw.some((p) => p.key === active.key)) {
+      raw.unshift({ key: active.key, root: active.root });
+    }
     const kept = excludeRemovedProjects(raw, removedProjectKeys ?? new Set());
     const mapped = kept.map((project) => ({
       ...project,
@@ -1273,7 +1279,14 @@ export function SessionSidebar({
       );
     }
     return mapped;
-  }, [allSessions, projectActivity, removedProjectKeys, sortMode]);
+  }, [
+    allSessions,
+    projectActivity,
+    removedProjectKeys,
+    sortMode,
+    selectedCwd,
+    projectFor,
+  ]);
 
   const isGroupExpanded = useCallback(
     (key: string, index: number) =>

@@ -8,10 +8,22 @@ const env = { ...process.env };
 delete env.__NEXT_PRIVATE_STANDALONE_CONFIG;
 delete env.__NEXT_PRIVATE_ORIGIN;
 
+// Optional output dir override, e.g. `node electron/build.mjs dist-electron2`
+// (useful when the default dir is locked by sync/AV software)
+const outDir = process.argv[2] || "dist-electron";
+
 const steps = [
   ["npx", ["next", "build"]],
   ["node", ["electron/before-pack.mjs"]],
-  ["npx", ["electron-builder"]],
+  [
+    "npx",
+    [
+      "electron-builder",
+      ...(outDir === "dist-electron"
+        ? []
+        : [`--config.directories.output=${outDir}`]),
+    ],
+  ],
 ];
 
 for (const [cmd, args] of steps) {

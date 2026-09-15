@@ -76,10 +76,7 @@ import {
   setLastOpenSession,
   workspaceKeyOf,
 } from "@/lib/workspace-memory";
-import {
-  loadRemovedProjects,
-  unhideProject,
-} from "@/lib/project-groups";
+import { loadRemovedProjects, unhideProject } from "@/lib/project-groups";
 import {
   getDefaultRightPanelWidth,
   getRightPanelMaxWidth,
@@ -988,10 +985,10 @@ export function AppShell() {
   // is looked up against the live list so a deleted or drifted session falls
   // back to the default welcome page instead of erroring.
   const restoreWorkspaceContext = useCallback(
-    (projectKey: string, cwd: string) => {
+    (projectKey: string, cwd: string): boolean => {
       const token = ++workspaceRestoreTokenRef.current;
       const lastOpenSessionId = getLastOpenSession(projectKey);
-      if (!lastOpenSessionId) return;
+      if (!lastOpenSessionId) return false;
       void fetch("/api/sessions")
         .then((r) =>
           r.ok ? (r.json() as Promise<{ sessions: SessionInfo[] }>) : null,
@@ -1033,6 +1030,7 @@ export function AppShell() {
         .catch(() => {
           // Network hiccup: keep the remembered session for a later retry.
         });
+      return true;
     },
     [],
   );
@@ -1108,7 +1106,24 @@ export function AppShell() {
         }
         // Restore the workspace we switched to: its last open session, or keep
         // the default welcome page when none is remembered.
-        restoreWorkspaceContext(newProject, cwd);
+        const restored = restoreWorkspaceContext(newProject, cwd);
+        if (restored) {
+          // The remembered session restores asynchronously. Until it lands, the
+          // active-tab→view effect must not re-enter the outgoing project's
+          // draft tab — that would snap the composer back to the old directory
+          // and double-park the fresh composer's draft key.
+          setTabState((current) => {
+            const active = current.tabs.find((t) => t.id === current.activeId);
+            return active?.draftCwd !== undefined && active.draftCwd !== cwd
+              ? { ...current, activeId: null }
+              : current;
+          });
+        } else {
+          // Fresh directory (no remembered session): open a new-session draft
+          // tab for it, same as the sidebar "+" — otherwise the tab bar keeps
+          // the old project's tab while an untitled composer takes the view.
+          setTabState((current) => openDraftTab(current, draftId, cwd));
+        }
       }
       router.replace(
         typeof window !== "undefined" ? window.location.pathname : "/",
@@ -3223,23 +3238,62 @@ export function AppShell() {
               >
                 <button
                   onClick={handleSidebarToggle}
-                  title={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
-                  aria-label={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
+                  title={
+                    sidebarOpen
+                      ? translate("sidebar.hide")
+                      : translate("sidebar.show")
+                  }
+                  aria-label={
+                    sidebarOpen
+                      ? translate("sidebar.hide")
+                      : translate("sidebar.show")
+                  }
                   style={{
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    width: TOP_BAR_ICON_BUTTON_SIZE, height: TOP_BAR_ICON_BUTTON_SIZE, padding: 0,
-                    background: "none", border: "none", borderRight: "1px solid var(--border)",
-                    color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, transition: "color 0.12s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: TOP_BAR_ICON_BUTTON_SIZE,
+                    height: TOP_BAR_ICON_BUTTON_SIZE,
+                    padding: 0,
+                    background: "none",
+                    border: "none",
+                    borderRight: "1px solid var(--border)",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    transition: "color 0.12s",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "var(--text)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "var(--text-muted)";
+                  }}
                 >
                   {sidebarOpen ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" />
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <line x1="9" y1="3" x2="9" y2="21" />
                     </svg>
                   ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    >
                       <line x1="3" y1="6" x2="21" y2="6" />
                       <line x1="3" y1="12" x2="21" y2="12" />
                       <line x1="3" y1="18" x2="21" y2="18" />

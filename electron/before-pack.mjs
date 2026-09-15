@@ -31,8 +31,12 @@ const filter = (srcPath) => {
   if (!rel) return true;
   const topDir = rel.split(/[\\/]/)[0];
   if (EXCLUDE.has(topDir)) return false;
-  // Strip .ts/.tsx from project source only (keep node_modules intact)
-  if (!rel.includes("node_modules") && /\.(ts|tsx|map)$/.test(srcPath)) return false;
+  // Source maps and TS declaration files are never loaded at runtime (~8.3k files, 39%)
+  if (/\.map$/i.test(srcPath)) return false;
+  if (/\.d\.(ts|mts|cts)$/i.test(srcPath)) return false;
+  // Strip .ts/.tsx from project source only (keep node_modules .ts — pi runtime may load them)
+  if (!rel.includes("node_modules") && /\.(ts|tsx)$/.test(srcPath))
+    return false;
   return true;
 };
 
